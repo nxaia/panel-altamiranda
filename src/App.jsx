@@ -143,6 +143,27 @@ function Reloj() {
   );
 }
 
+function AlertaTATITO() {
+  const vencimiento = new Date("2027-03-31");
+  const hoy = new Date();
+  const dias = Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24));
+  const meses = Math.floor(dias / 30);
+  const color = dias <= 90 ? "#FF6B35" : dias <= 180 ? "#F7B731" : "#2EC4B6";
+  return (
+    <div style={{ ...card({ borderColor: color + "66", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }) }}>
+      <div>
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 4, fontWeight: 600, letterSpacing: 1 }}>⚠️ CONTRATO TATITO</div>
+        <div style={{ fontSize: 13, color: C.text }}>Vence el <span style={{ fontWeight: 700 }}>31 de marzo de 2027</span></div>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <div style={{ fontSize: 28, fontWeight: 800, color }}>{dias}</div>
+        <div style={{ fontSize: 10, color: C.muted }}>días restantes</div>
+        <div style={{ fontSize: 10, color: C.dim }}>≈ {meses} meses</div>
+      </div>
+    </div>
+  );
+}
+
 function Dashboard({ setTab }) {
   const modulos = [
     { tab: "diagnostico", icon: "📋", title: "Diagnóstico Franquicias", desc: "Plan de acción SOL basado en encuesta real", color: "#F7B731" },
@@ -158,6 +179,7 @@ function Dashboard({ setTab }) {
         <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Buenos días, Ale 👋</div>
         <div style={{ color: C.muted, fontSize: 14, marginBottom: 16 }}>Panel de gestión — 2 clientes · 6 empresas activas</div>
         <Reloj />
+        <AlertaTATITO />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
         {[
