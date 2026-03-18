@@ -1,5 +1,33 @@
 import { useState, useEffect } from "react";
 
+const SUPABASE_URL = "https://yencfonwqzqbtoicoukf.supabase.co";
+const SUPABASE_KEY = "sb_publishable_QoEI3g_X9PaQdAFCL7rMjA_j2fAHAfx";
+
+async function dbGet(tabla) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?order=created_at.desc`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  });
+  return res.ok ? res.json() : [];
+}
+
+async function dbInsert(tabla, data) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify(data)
+  });
+  return res.ok ? res.json() : null;
+}
+
+async function dbUpdate(tabla, id, data) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+  return res.ok;
+}
+
 const DIAS = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
@@ -28,10 +56,10 @@ const CHECKLIST_SUPERVISION = [
   "Reordenamiento de áreas críticas","Evaluación del equipo interno","Seguimiento de indicadores clave",
 ];
 
-const ROXANA_INICIAL = [
-  { semana: "Semana 1", llamadas: 42, contactos: 28, oportunidades: 12, seguimientos: 8, ventas: 18, monto: 85000 },
-  { semana: "Semana 2", llamadas: 48, contactos: 32, oportunidades: 15, seguimientos: 10, ventas: 22, monto: 98000 },
-  { semana: "Semana 3", llamadas: 51, contactos: 35, oportunidades: 18, seguimientos: 12, ventas: 25, monto: 112000 },
+const ROXANA_DEMO = [
+  { id: 1, semana: "Semana 1", llamadas: 42, contactos: 28, oportunidades: 12, seguimientos: 8, ventas: 18, monto: 85000 },
+  { id: 2, semana: "Semana 2", llamadas: 48, contactos: 32, oportunidades: 15, seguimientos: 10, ventas: 22, monto: 98000 },
+  { id: 3, semana: "Semana 3", llamadas: 51, contactos: 35, oportunidades: 18, seguimientos: 12, ventas: 25, monto: 112000 },
 ];
 
 const RUTINA_DIARIA = [
@@ -57,6 +85,16 @@ const DIAGNOSTICO_SOL = {
   problemas: ["Falta delegación y roles claros", "Personal solo despacha, no vende", "Nula presencia en redes sociales", "Precios poco competitivos vs mayoristas de la zona", "Desorden cuando llegan pedidos del centro logístico", "Sin sistema de stock"],
   pedidos: ["Acciones unificadas entre franquicias (sorteos)", "Redes sociales", "Promociones con tarjetas", "Capacitación en atención al cliente", "Sistema de stock", "Anticipación a fechas clave"],
 };
+
+const PLAN_ITEMS = [
+  "Prioridad 1 — Definir roles claros con el equipo",
+  "Prioridad 2 — Capacitación en ventas activas al personal",
+  "Prioridad 3 — Arrancar presencia en redes sociales",
+  "30 días — Sistema de stock básico operativo",
+  "30 días — Reorganización de funciones documentada",
+  "60 días — Primera acción promocional (sorteo)",
+  "90 días — Revisión de resultados y ajuste de plan",
+];
 
 const C = { bg: "#0F1117", card: "#1A1D2E", border: "#2A2D3E", text: "#E8E8F0", muted: "#9CA3AF", dim: "#6B7280" };
 const card = (extra) => ({ background: C.card, borderRadius: 14, padding: 20, border: `1px solid ${C.border}`, ...extra });
@@ -177,40 +215,45 @@ function Empresas() {
 }
 
 function Diagnostico() {
-  const [aiOut, setAiOut] = useState(""); const [aiLoad, setAiLoad] = useState(false);
+  const [aiOut, setAiOut] = useState("");
+  const [aiLoad, setAiLoad] = useState(false);
   const [seguimiento, setSeguimiento] = useState({});
+  const [guardando, setGuardando] = useState(false);
+  const [guardado, setGuardado] = useState(false);
+
+  useEffect(() => {
+    dbGet("diagnostico_seguimiento").then(data => {
+      if (data && data.length > 0) {
+        setSeguimiento(JSON.parse(data[0].items || "{}"));
+      }
+    });
+  }, []);
+
   const d = DIAGNOSTICO_SOL;
   const promedio = Math.round(Object.values(d.calificaciones).reduce((a, b) => a + b, 0) / Object.values(d.calificaciones).length * 10) / 10;
   const color = promedio >= 7 ? "#2EC4B6" : promedio >= 5 ? "#F7B731" : "#FF6B35";
 
+  const toggleItem = async (i) => {
+    const nuevo = { ...seguimiento, [i]: !seguimiento[i] };
+    setSeguimiento(nuevo);
+    const data = await dbGet("diagnostico_seguimiento");
+    if (data && data.length > 0) {
+      await dbUpdate("diagnostico_seguimiento", data[0].id, { items: JSON.stringify(nuevo) });
+    } else {
+      await dbInsert("diagnostico_seguimiento", { items: JSON.stringify(nuevo), franquiciado: "SOL" });
+    }
+  };
+
   const genPlan = async () => {
     setAiLoad(true); setAiOut("");
-    const sys = `Sos un consultor de negocios experto en franquicias y retail del NOA argentino. 
-Generás planes de acción concretos, priorizados y accionables basados en diagnósticos reales de franquiciados.
-Conocés el contexto: TATITO/SOL son franquicias de fiambres, lácteos y productos de supermercado de DEPAL SRL (Fabián Salguero).
-El consultor que gestiona es Alejandro Altamiranda.`;
+    const sys = `Sos un consultor de negocios experto en franquicias y retail del NOA argentino. Generás planes de acción concretos, priorizados y accionables basados en diagnósticos reales de franquiciados. El consultor que gestiona es Alejandro Altamiranda.`;
     const prompt = `Diagnóstico real del franquiciado ${d.franquiciado} — ${d.local} (${d.fecha})
 Puntaje general: ${d.puntaje}/10
-Promedio calificaciones: ${promedio}/10
-
-CALIFICACIONES:
-${Object.entries(d.calificaciones).map(([k, v]) => `${k}: ${v}/10`).join("\n")}
-
-FORTALEZAS:
-${d.fortalezas.map(f => `- ${f}`).join("\n")}
-
-PROBLEMAS DETECTADOS:
-${d.problemas.map(p => `- ${p}`).join("\n")}
-
-LO QUE PIDE EL FRANQUICIADO:
-${d.pedidos.map(p => `- ${p}`).join("\n")}
-
-Generá un plan de acción completo con:
-1. Diagnóstico ejecutivo (2-3 líneas)
-2. Top 3 prioridades inmediatas (esta semana)
-3. Acciones a 30 días con responsable y métrica
-4. Acciones a 60-90 días
-5. Recomendación específica para Alejandro sobre cómo abordar a este franquiciado`;
+CALIFICACIONES:\n${Object.entries(d.calificaciones).map(([k, v]) => `${k}: ${v}/10`).join("\n")}
+FORTALEZAS:\n${d.fortalezas.map(f => `- ${f}`).join("\n")}
+PROBLEMAS:\n${d.problemas.map(p => `- ${p}`).join("\n")}
+LO QUE PIDE:\n${d.pedidos.map(p => `- ${p}`).join("\n")}
+Generá plan con: diagnóstico ejecutivo, top 3 prioridades inmediatas, acciones a 30/60/90 días y recomendación para Alejandro.`;
     await callAI(sys, prompt, t => setAiOut(t));
     setAiLoad(false);
   };
@@ -219,7 +262,6 @@ Generá un plan de acción completo con:
     <div>
       <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>📋 Diagnóstico Franquicias</div>
       <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Encuesta real · Marzo 2026</div>
-
       <div style={{ ...card({ marginBottom: 16, borderColor: color + "44" }) }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
           <div>
@@ -232,7 +274,6 @@ Generá un plan de acción completo con:
             <div style={{ fontSize: 10, color: C.muted }}>autoevaluación</div>
           </div>
         </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
           {Object.entries(d.calificaciones).slice(0, 9).map(([k, v]) => (
             <div key={k} style={{ background: C.bg, borderRadius: 8, padding: "8px 10px" }}>
@@ -241,7 +282,6 @@ Generá un plan de acción completo con:
             </div>
           ))}
         </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
           <div style={{ background: "#2EC4B611", borderRadius: 10, padding: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#2EC4B6", marginBottom: 8 }}>✅ FORTALEZAS</div>
@@ -252,32 +292,26 @@ Generá un plan de acción completo con:
             {d.problemas.slice(0, 4).map((p, i) => <div key={i} style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>· {p}</div>)}
           </div>
         </div>
-
         <button onClick={genPlan} disabled={aiLoad} style={{ ...btn("#F7B731"), opacity: aiLoad ? 0.5 : 1, width: "100%" }}>
           {aiLoad ? "Generando plan..." : "✨ Generar Plan de Acción con IA"}
         </button>
         <AIBox text={aiOut} loading={aiLoad} />
       </div>
-
-      {aiOut && (
-        <div style={card({ borderColor: "#F7B73144" })}>
-          <div style={{ fontWeight: 700, marginBottom: 12, color: "#F7B731" }}>📌 Seguimiento del plan</div>
-          {["Prioridad 1 — Definir roles claros con el equipo", "Prioridad 2 — Capacitación en ventas activas al personal", "Prioridad 3 — Arrancar presencia en redes sociales", "30 días — Sistema de stock básico operativo", "30 días — Reorganización de funciones documentada", "60 días — Primera acción promocional (sorteo)", "90 días — Revisión de resultados y ajuste de plan"].map((item, i) => (
-            <div key={i} onClick={() => setSeguimiento(p => ({ ...p, [i]: !p[i] }))}
-              style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: seguimiento[i] ? "#F7B73111" : C.bg, borderRadius: 8, cursor: "pointer", border: `1px solid ${seguimiento[i] ? "#F7B73144" : C.border}`, marginBottom: 6 }}>
-              <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${seguimiento[i] ? "#F7B731" : "#4B5563"}`, background: seguimiento[i] ? "#F7B731" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>{seguimiento[i] ? "✓" : ""}</div>
-              <span style={{ fontSize: 13, color: seguimiento[i] ? C.text : C.muted, textDecoration: seguimiento[i] ? "line-through" : "none" }}>{item}</span>
-            </div>
-          ))}
-          <div style={{ marginTop: 10, fontSize: 12, color: C.muted }}>
-            {Object.values(seguimiento).filter(Boolean).length}/{7} implementados
-          </div>
+      <div style={card({ borderColor: "#F7B73144" })}>
+        <div style={{ fontWeight: 700, marginBottom: 4, color: "#F7B731" }}>📌 Seguimiento del plan</div>
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>
+          {guardado ? "✅ Guardado en Supabase" : "Se guarda automáticamente"}
         </div>
-      )}
-
-      <div style={{ ...card({ marginTop: 16, borderColor: "#2A2D3E" }) }}>
-        <div style={{ fontSize: 12, color: C.muted, fontWeight: 600, marginBottom: 8 }}>📬 Encuestas pendientes</div>
-        <div style={{ fontSize: 13, color: C.dim }}>Esperando respuesta de otros franquiciados de TATITO... Cuando lleguen, se agregan acá automáticamente.</div>
+        {PLAN_ITEMS.map((item, i) => (
+          <div key={i} onClick={() => toggleItem(i)}
+            style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: seguimiento[i] ? "#F7B73111" : C.bg, borderRadius: 8, cursor: "pointer", border: `1px solid ${seguimiento[i] ? "#F7B73144" : C.border}`, marginBottom: 6 }}>
+            <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${seguimiento[i] ? "#F7B731" : "#4B5563"}`, background: seguimiento[i] ? "#F7B731" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>{seguimiento[i] ? "✓" : ""}</div>
+            <span style={{ fontSize: 13, color: seguimiento[i] ? C.text : C.muted, textDecoration: seguimiento[i] ? "line-through" : "none" }}>{item}</span>
+          </div>
+        ))}
+        <div style={{ marginTop: 10, fontSize: 12, color: C.muted }}>
+          {Object.values(seguimiento).filter(Boolean).length}/{PLAN_ITEMS.length} implementados
+        </div>
       </div>
     </div>
   );
@@ -290,17 +324,28 @@ function Auditoria() {
   const [obs, setObs] = useState("");
   const [saved, setSaved] = useState([]);
   const [aiOut, setAiOut] = useState(""); const [aiLoad, setAiLoad] = useState(false);
+
+  useEffect(() => { dbGet("auditorias").then(data => setSaved(data || [])); }, []);
+
   const toggle = (i) => setChecks(p => ({ ...p, [i]: !p[i] }));
   const done = CHECKLIST_AUDITORIA.filter((_, i) => checks[i]).length;
   const pct = Math.round((done / CHECKLIST_AUDITORIA.length) * 100);
   const emp = EMPRESAS.find(e => e.id === Number(empresa)) || empresas[0];
-  const guardar = () => { setSaved(p => [{ id: Date.now(), empresa: emp.nombre, fecha: new Date().toLocaleDateString("es-AR"), pct, obs }, ...p]); setChecks({}); setObs(""); };
+
+  const guardar = async () => {
+    const nueva = { empresa: emp.nombre, fecha: new Date().toLocaleDateString("es-AR"), pct, obs };
+    const result = await dbInsert("auditorias", nueva);
+    if (result) setSaved(p => [result[0], ...p]);
+    setChecks({}); setObs("");
+  };
+
   const genResumen = async () => {
     setAiLoad(true); setAiOut("");
     const items = CHECKLIST_AUDITORIA.map((c, i) => `${checks[i] ? "✅" : "❌"} ${c}`).join("\n");
     await callAI("Sos un consultor de negocios del NOA argentino. Generás resúmenes ejecutivos de auditorías claros y accionables.", `Empresa: ${emp.nombre}\nAuditoría al ${pct}%\nObservaciones: ${obs || "ninguna"}\n${items}\n\nResumen ejecutivo con puntos críticos y próximos pasos.`, t => setAiOut(t));
     setAiLoad(false);
   };
+
   return (
     <div>
       <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>🔍 Auditoría de Franquicia</div>
@@ -320,12 +365,17 @@ function Auditoria() {
         </div>
         <div style={{ marginBottom: 14 }}><span style={lbl}>Observaciones</span><textarea style={{ ...inp, minHeight: 70, resize: "vertical" }} placeholder="Anotá lo que encontraste..." value={obs} onChange={e => setObs(e.target.value)} /></div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={guardar} style={btn(emp.color)}>💾 Guardar</button>
+          <button onClick={guardar} style={btn(emp.color)}>💾 Guardar en Supabase</button>
           <button onClick={genResumen} disabled={aiLoad} style={{ ...btn(emp.color, true), opacity: aiLoad ? 0.5 : 1 }}>✨ Resumen IA</button>
         </div>
         <AIBox text={aiOut} loading={aiLoad} />
       </div>
-      {saved.map(s => <div key={s.id} style={card({ marginBottom: 10 })}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 700 }}>{s.empresa}</span><span style={badge(s.pct >= 80 ? "#2EC4B6" : "#F7B731")}>{s.pct}%</span></div>{s.obs && <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>💬 {s.obs}</div>}</div>)}
+      {saved.length > 0 && (
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: C.muted, marginBottom: 12 }}>HISTORIAL GUARDADO</div>
+          {saved.map((s, i) => <div key={i} style={card({ marginBottom: 10 })}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 700 }}>{s.empresa}</span><span style={badge(s.pct >= 80 ? "#2EC4B6" : "#F7B731")}>{s.pct}%</span></div><div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>📅 {s.fecha}</div>{s.obs && <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>💬 {s.obs}</div>}</div>)}
+        </div>
+      )}
     </div>
   );
 }
@@ -378,30 +428,40 @@ function Supervision() {
 }
 
 function Roxana() {
-  const [registros, setRegistros] = useState(ROXANA_INICIAL);
+  const [registros, setRegistros] = useState(ROXANA_DEMO);
   const [semana, setSemana] = useState(""); const [llamadas, setLlamadas] = useState("");
   const [contactos, setContactos] = useState(""); const [oportunidades, setOportunidades] = useState("");
   const [seguimientos, setSeguimientos] = useState(""); const [ventas, setVentas] = useState(""); const [monto, setMonto] = useState("");
   const [rutina, setRutina] = useState({});
   const [aiOut, setAiOut] = useState(""); const [aiLoad, setAiLoad] = useState(false);
   const [vista, setVista] = useState("kpis");
-  const agregar = () => {
+
+  useEffect(() => {
+    dbGet("roxana_kpis").then(data => { if (data && data.length > 0) setRegistros([...ROXANA_DEMO, ...data]); });
+  }, []);
+
+  const agregar = async () => {
     if (!semana || !llamadas) return;
-    setRegistros(p => [...p, { semana, llamadas: Number(llamadas), contactos: Number(contactos), oportunidades: Number(oportunidades), seguimientos: Number(seguimientos), ventas: Number(ventas), monto: Number(monto) }]);
+    const nueva = { semana, llamadas: Number(llamadas), contactos: Number(contactos), oportunidades: Number(oportunidades), seguimientos: Number(seguimientos), ventas: Number(ventas), monto: Number(monto) };
+    const result = await dbInsert("roxana_kpis", nueva);
+    if (result) setRegistros(p => [...p, result[0]]);
     setSemana(""); setLlamadas(""); setContactos(""); setOportunidades(""); setSeguimientos(""); setVentas(""); setMonto("");
   };
+
   const analizar = async () => {
     setAiLoad(true); setAiOut("");
     const datos = registros.map(r => `${r.semana}: ${r.llamadas} llamadas, ${r.contactos} contactos efectivos, ${r.oportunidades} oportunidades, ${r.seguimientos} seguimientos, ${r.ventas} ventas, $${r.monto.toLocaleString()}`).join("\n");
-    await callAI(`Sos un coach de ventas especializado en telemarketing B2B para distribuidoras en Argentina. Conocés el Manual Operativo de CELOG: el telemarketer debe hacer llamadas de captación, reactivación y seguimiento. KPIs clave: llamadas realizadas, contactos efectivos, oportunidades generadas, seguimientos concretados.`,
-      `Vendedora: Roxana (CELOG)\nDatos semanales:\n${datos}\n\nAnalizá su evolución en todos los KPIs e identificá en qué momento del proceso está fallando. Generá recomendaciones concretas.`, t => setAiOut(t));
+    await callAI(`Sos un coach de ventas especializado en telemarketing B2B para distribuidoras en Argentina. KPIs clave: llamadas realizadas, contactos efectivos, oportunidades generadas, seguimientos concretados.`,
+      `Vendedora: Roxana (CELOG)\nDatos:\n${datos}\n\nAnalizá evolución en todos los KPIs e identificá dónde está fallando. Generá recomendaciones concretas.`, t => setAiOut(t));
     setAiLoad(false);
   };
+
   const ultima = registros[registros.length - 1];
   const anteult = registros[registros.length - 2];
   const convRate = ultima ? Math.round((ultima.ventas / ultima.llamadas) * 100) : 0;
   const efectividad = ultima ? Math.round((ultima.contactos / ultima.llamadas) * 100) : 0;
   const convOport = ultima && ultima.contactos ? Math.round((ultima.oportunidades / ultima.contactos) * 100) : 0;
+
   return (
     <div>
       <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>📞 Roxana — CELOG</div>
@@ -483,7 +543,7 @@ function Roxana() {
             <div><span style={lbl}>Ventas cerradas</span><input style={inp} type="number" placeholder="0" value={ventas} onChange={e => setVentas(e.target.value)} /></div>
             <div><span style={lbl}>Monto total ($)</span><input style={inp} type="number" placeholder="0" value={monto} onChange={e => setMonto(e.target.value)} /></div>
           </div>
-          <button onClick={agregar} disabled={!semana || !llamadas} style={{ ...btn("#9B5DE5"), opacity: !semana || !llamadas ? 0.5 : 1 }}>💾 Guardar semana</button>
+          <button onClick={agregar} disabled={!semana || !llamadas} style={{ ...btn("#9B5DE5"), opacity: !semana || !llamadas ? 0.5 : 1 }}>💾 Guardar en Supabase</button>
         </div>
       )}
     </div>
@@ -494,7 +554,7 @@ function Manaos() {
   const [contexto, setContexto] = useState(""); const [aiOut, setAiOut] = useState(""); const [aiLoad, setAiLoad] = useState(false); const [planes, setPlanes] = useState([]);
   const generar = async () => {
     setAiLoad(true); setAiOut("");
-    const result = await callAI("Sos un consultor de ventas especializado en distribución de bebidas en Argentina (NOA). Diseñás estrategias concretas y accionables para PyMEs. Sin buzzwords.", `Empresa: MANAOS\nObjetivo: Aumentar ventas\nContexto: ${contexto || "no especificado"}\nNo hay estrategia definida.\n\nGenerá estrategia completa: diagnóstico, canales, acciones 30/60/90 días, métricas y recursos.`, t => setAiOut(t));
+    const result = await callAI("Sos un consultor de ventas especializado en distribución de bebidas en Argentina (NOA). Sin buzzwords.", `Empresa: MANAOS\nObjetivo: Aumentar ventas\nContexto: ${contexto || "no especificado"}\n\nGenerá estrategia completa: diagnóstico, canales, acciones 30/60/90 días, métricas.`, t => setAiOut(t));
     setPlanes(p => [{ id: Date.now(), contexto, contenido: result }, ...p]);
     setAiLoad(false);
   };
@@ -504,13 +564,12 @@ function Manaos() {
       <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Cliente: Néstor Hidalgo · Objetivo: Aumentar ventas</div>
       <div style={card({ marginBottom: 20, borderColor: "#2EC4B644" })}>
         <div style={{ fontWeight: 700, marginBottom: 4, color: "#2EC4B6" }}>✨ Generá una estrategia con IA</div>
-        <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>La IA va a crear un plan desde cero.</div>
         <span style={lbl}>Contexto actual (opcional)</span>
-        <textarea style={{ ...inp, minHeight: 80, resize: "vertical", marginBottom: 14 }} placeholder="Ej: Venden en kioscos del centro, tienen 3 vendedores..." value={contexto} onChange={e => setContexto(e.target.value)} />
+        <textarea style={{ ...inp, minHeight: 80, resize: "vertical", marginBottom: 14 }} placeholder="Ej: Venden en kioscos del centro..." value={contexto} onChange={e => setContexto(e.target.value)} />
         <button onClick={generar} disabled={aiLoad} style={{ ...btn("#2EC4B6"), opacity: aiLoad ? 0.5 : 1 }}>{aiLoad ? "Generando..." : "✨ Generar Estrategia"}</button>
         <AIBox text={aiOut} loading={aiLoad} />
       </div>
-      {planes.map(p => <div key={p.id} style={card({ marginBottom: 12 })}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ fontWeight: 700 }}>Estrategia MANAOS</span><span style={badge("#2EC4B6")}>Plan IA</span></div>{p.contexto && <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>📝 {p.contexto}</div>}<details><summary style={{ fontSize: 12, color: "#2EC4B6", cursor: "pointer" }}>Ver estrategia →</summary><div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{p.contenido}</div></details></div>)}
+      {planes.map(p => <div key={p.id} style={card({ marginBottom: 12 })}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}><span style={{ fontWeight: 700 }}>Estrategia MANAOS</span><span style={badge("#2EC4B6")}>Plan IA</span></div><details><summary style={{ fontSize: 12, color: "#2EC4B6", cursor: "pointer" }}>Ver estrategia →</summary><div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{p.contenido}</div></details></div>)}
     </div>
   );
 }
@@ -520,7 +579,7 @@ function Planes() {
   const [aiOut, setAiOut] = useState(""); const [aiLoad, setAiLoad] = useState(false); const [planes, setPlanes] = useState([]);
   const generar = async () => {
     if (!objetivo.trim()) return; setAiLoad(true); setAiOut("");
-    const result = await callAI("Sos un consultor de negocios experto en PyMEs del NOA argentino. Generás planes de operación con: Objetivo, Acciones clave (responsable + fecha), Métricas, Alertas de riesgo.", `Empresa: ${empresa}\nObjetivo: ${objetivo}\nPlazo: ${plazo}\nGenerá el plan completo.`, t => setAiOut(t));
+    const result = await callAI("Sos un consultor de negocios experto en PyMEs del NOA argentino.", `Empresa: ${empresa}\nObjetivo: ${objetivo}\nPlazo: ${plazo}\nGenerá plan con acciones, responsables, métricas y alertas.`, t => setAiOut(t));
     setPlanes(p => [{ id: Date.now(), empresa, objetivo, plazo, contenido: result }, ...p]); setAiLoad(false);
   };
   return (
@@ -543,7 +602,7 @@ function Planes() {
 }
 
 function Asistente() {
-  const [msgs, setMsgs] = useState([{ role: "assistant", text: "Hola Ale! Conozco todas tus empresas y los documentos reales — el Manual de CELOG, el diagnóstico de SOL y el contrato de TATITO. Preguntame cualquier cosa 💪" }]);
+  const [msgs, setMsgs] = useState([{ role: "assistant", text: "Hola Ale! Conozco todas tus empresas, el Manual de CELOG, el diagnóstico de SOL y el contrato de TATITO. Preguntame cualquier cosa 💪" }]);
   const [input, setInput] = useState(""); const [loading, setLoading] = useState(false);
   const send = async () => {
     if (!input.trim() || loading) return;
@@ -551,22 +610,9 @@ function Asistente() {
     const next = [...msgs, { role: "user", text: txt }, { role: "assistant", text: "" }];
     setMsgs(next); setLoading(true);
     const sys = `Sos el asistente personal de Ale Altamiranda, consultor de negocios del NOA argentino.
-
-CLIENTES Y EMPRESAS:
-- FABIÁN SALGUERO: TATITO (5 franquicias, administración general, contrato 36 meses desde 01/04/2024 vence 31/03/2027), SOL SRL (1 PdV, auditoría presencial), DEPAL SRL (supervisión proveedores + auditoría + reordenamiento + supervisión gerentes), CELOG (distribución alimentos y bebidas, Ale capacita a Roxana - telemarketer comercial B2B)
-- NÉSTOR HIDALGO: MANAOS (objetivo aumentar ventas, sin estrategia definida), DNH (15 productos similares a CELOG sin quesos/fiambres, supervisión y auditoría)
-
-DIAGNÓSTICO SOL (Gonzalo Miguel Angel, 14/03/26, puntaje 6/10):
-- Problemas: falta delegación, personal solo despacha, sin redes sociales, precios poco competitivos, desorden en recepción de pedidos, sin sistema de stock
-- Fortalezas: atención al cliente, puntualidad, buen layout
-- Pide: sorteos, redes sociales, acciones unificadas entre franquicias
-
-MANUAL OPERATIVO ROXANA (CELOG):
-- Rol: telemarketer comercial B2B, genera oportunidades comerciales
-- KPIs: llamadas realizadas, contactos efectivos, oportunidades generadas, seguimientos concretados
-- Proceso: antes del llamado (preparar), durante (escuchar, guiar), después (registrar)
-- Tipos de llamada: captación, reactivación, seguimiento
-
+Clientes: FABIÁN SALGUERO (TATITO 5 franquicias admin general, contrato vence 31/03/2027; SOL SRL auditoría; DEPAL SRL supervisión+auditoría+gerentes; CELOG capacitás a Roxana telemarketer B2B) y NÉSTOR HIDALGO (MANAOS aumentar ventas; DNH supervisión+auditoría).
+Diagnóstico SOL: puntaje 6/10, problemas principales: falta delegación, personal solo despacha, sin redes sociales, sin sistema de stock.
+Manual Roxana CELOG: KPIs = llamadas, contactos efectivos, oportunidades, seguimientos. Proceso: preparar → escuchar → registrar.
 Respondés en español rioplatense, directo y práctico.`;
     await callAI(sys, txt, t => { setMsgs(p => { const u = [...p]; u[u.length - 1] = { role: "assistant", text: t }; return u; }); });
     setLoading(false);
