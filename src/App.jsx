@@ -666,7 +666,7 @@ export default function App() {
     <div style={{ fontFamily: "'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh", color: C.text }}>
       <div style={{ background: C.card, borderBottom: `1px solid ${C.border}`, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: "linear-gradient(135deg, #FF6B35, #F7B731)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 15 }}>A</div>
+          <img src="/logo.png" style={{ width: 42, height: 42, objectFit: "contain" }} alt="Logo" />
           <div style={{ fontWeight: 700, fontSize: 14 }}>Altamiranda Gestión</div>
         </div>
         <span style={badge("#9B5DE5")}>✨ IA Activa</span>
