@@ -540,6 +540,8 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [dashboardText, setDashboardText] = useState("");
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [controlItems, setControlItems] = useState({});
+  const [nuevoControl, setNuevoControl] = useState("");
+  const [controlesExtra, setControlesExtra] = useState([]);
   const [accion, setAccion] = useState("");
   const [acciones, setAcciones] = useState([]);
   const [inicio, setInicio] = useState("");
@@ -552,6 +554,20 @@ function EmpresaDetalle({ empresaId, onBack }) {
 
   useEffect(() => {
     if (empresa) cargarPlanes();
+  }, [empresaId]);
+
+  useEffect(() => {
+    if (!empresa) return;
+    const saved = localStorage.getItem(`controles_extra_${empresa.id}`);
+    if (saved) {
+      try {
+        setControlesExtra(JSON.parse(saved));
+      } catch {
+        setControlesExtra([]);
+      }
+    } else {
+      setControlesExtra([]);
+    }
   }, [empresaId]);
 
   const cargarPlanes = async () => {
@@ -660,6 +676,14 @@ Respondé en formato claro y breve.`;
     setGuardandoPlan(false);
   };
 
+  const agregarControlManual = () => {
+    if (!nuevoControl.trim() || !empresa) return;
+    const actualizados = [...controlesExtra, nuevoControl.trim()];
+    setControlesExtra(actualizados);
+    setNuevoControl("");
+    localStorage.setItem(`controles_extra_${empresa.id}`, JSON.stringify(actualizados));
+  };
+
   if (!empresa) {
     return (
       <div style={card()}>
@@ -675,6 +699,8 @@ Respondé en formato claro y breve.`;
     "Plan de acción actualizado",
     "Próxima reunión definida"
   ];
+
+  const controlesCompletos = [...controlBase, ...controlesExtra];
 
   const subtabs = [
     { id: "resumen", label: "Resumen" },
@@ -930,9 +956,26 @@ Respondé en formato claro y breve.`;
             Checklist base para asegurar seguimiento de la cuenta.
           </div>
 
-          {controlBase.map((item, idx) => (
+          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+            <input
+              style={{ ...inp, flex: 1 }}
+              placeholder="Agregar nuevo ítem de control..."
+              value={nuevoControl}
+              onChange={(e) => setNuevoControl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && agregarControlManual()}
+            />
+            <button
+              onClick={agregarControlManual}
+              disabled={!nuevoControl.trim()}
+              style={{ ...btn(empresa.color), opacity: !nuevoControl.trim() ? 0.6 : 1 }}
+            >
+              Agregar
+            </button>
+          </div>
+
+          {controlesCompletos.map((item, idx) => (
             <div
-              key={idx}
+              key={`${idx}-${item}`}
               onClick={() => setControlItems((prev) => ({ ...prev, [idx]: !prev[idx] }))}
               style={{
                 display: "flex",
