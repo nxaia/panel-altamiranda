@@ -1423,6 +1423,7 @@ const TABS = [
   { id: "empresas", label: "🏢 Empresas" },
   { id: "planes", label: "🎯 Planes" },
   { id: "asistente", label: "🤖 IA" },
+  { id: "notas", label: "🧠 Notas" },
 ];
 
 export default function App() {
