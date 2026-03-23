@@ -54,6 +54,73 @@ const EMPRESAS = [
   { id: 6, nombre: "DNH", clienteId: "nestor", color: "#4CC9F0", initial: "DN", rol: "Supervisión y auditoría", tipo: "auditoria", sucursales: 1 },
 ];
 
+function NotasEmpresa() {
+  const [empresa, setEmpresa] = useState(EMPRESAS[0].nombre);
+  const [nota, setNota] = useState("");
+  const [notas, setNotas] = useState([]);
+
+  useEffect(() => {
+    cargarNotas();
+  }, [empresa]);
+
+  const cargarNotas = async () => {
+    const data = await dbGet("notas_empresas");
+    if (data) {
+      const filtradas = data.filter(n => n.empresa === empresa);
+      setNotas(filtradas);
+    }
+  };
+
+  const guardarNota = async () => {
+    if (!nota.trim()) return;
+
+    await dbInsert("notas_empresas", {
+      empresa,
+      contenido: nota,
+      tipo: "manual"
+    });
+
+    setNota("");
+    cargarNotas();
+  };
+
+  return (
+    <div>
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
+        🧠 Notas por Empresa
+      </div>
+
+      <div style={card({ marginBottom: 20 })}>
+        <span style={lbl}>Empresa</span>
+        <select style={sel} value={empresa} onChange={(e) => setEmpresa(e.target.value)}>
+          {EMPRESAS.map(e => <option key={e.id}>{e.nombre}</option>)}
+        </select>
+
+        <span style={lbl}>Nueva nota</span>
+        <textarea
+          style={{ ...inp, minHeight: 80 }}
+          value={nota}
+          onChange={(e) => setNota(e.target.value)}
+          placeholder="Escribí una nota..."
+        />
+
+        <button onClick={guardarNota} style={{ ...btn("#FF6B35"), marginTop: 10 }}>
+          💾 Guardar nota
+        </button>
+      </div>
+
+      {notas.map((n, i) => (
+        <div key={i} style={card({ marginBottom: 10 })}>
+          <div style={{ fontSize: 12, color: "#9CA3AF" }}>
+            {new Date(n.created_at).toLocaleString()}
+          </div>
+          <div style={{ marginTop: 5 }}>{n.contenido}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const CHECKLIST_AUDITORIA = [
   "Revisión de stock y faltantes",
   "Control de fechas de vencimiento",
