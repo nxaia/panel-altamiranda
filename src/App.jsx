@@ -54,16 +54,10 @@ const EMPRESAS = [
   { id: 6, nombre: "DNH", clienteId: "nestor", color: "#4CC9F0", initial: "DN", rol: "Supervisión y auditoría", tipo: "auditoria", sucursales: 1 },
 ];
 
-function NotasEmpresa({ empresaFija = "", compact = false }) {
-  const empresaInicial = empresaFija || EMPRESAS[0].nombre;
-  const [empresa, setEmpresa] = useState(empresaInicial);
+function NotasEmpresa() {
+  const [empresa, setEmpresa] = useState(EMPRESAS[0].nombre);
   const [nota, setNota] = useState("");
   const [notas, setNotas] = useState([]);
-  const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => {
-    setEmpresa(empresaFija || EMPRESAS[0].nombre);
-  }, [empresaFija]);
 
   useEffect(() => {
     cargarNotas();
@@ -72,82 +66,57 @@ function NotasEmpresa({ empresaFija = "", compact = false }) {
   const cargarNotas = async () => {
     const data = await dbGet("notas_empresas");
     if (data) {
-      const filtradas = data.filter((n) => n.empresa === empresa);
+      const filtradas = data.filter(n => n.empresa === empresa);
       setNotas(filtradas);
     }
   };
 
   const guardarNota = async () => {
     if (!nota.trim()) return;
-    setGuardando(true);
 
     await dbInsert("notas_empresas", {
       empresa,
-      contenido: nota.trim(),
+      contenido: nota,
       tipo: "manual"
     });
 
     setNota("");
-    await cargarNotas();
-    setGuardando(false);
+    cargarNotas();
   };
 
   return (
     <div>
-      {!compact && (
-        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
-          🧠 Notas por Empresa
-        </div>
-      )}
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
+        🧠 Notas por Empresa
+      </div>
 
       <div style={card({ marginBottom: 20 })}>
-        {!empresaFija && (
-          <div style={{ marginBottom: 14 }}>
-            <span style={lbl}>Empresa</span>
-            <select style={sel} value={empresa} onChange={(e) => setEmpresa(e.target.value)}>
-              {EMPRESAS.map((e) => <option key={e.id}>{e.nombre}</option>)}
-            </select>
-          </div>
-        )}
-
-        {empresaFija && (
-          <div style={{ marginBottom: 14 }}>
-            <span style={lbl}>Empresa</span>
-            <div style={{ ...inp, display: "flex", alignItems: "center", opacity: 0.9 }}>{empresa}</div>
-          </div>
-        )}
+        <span style={lbl}>Empresa</span>
+        <select style={sel} value={empresa} onChange={(e) => setEmpresa(e.target.value)}>
+          {EMPRESAS.map(e => <option key={e.id}>{e.nombre}</option>)}
+        </select>
 
         <span style={lbl}>Nueva nota</span>
         <textarea
-          style={{ ...inp, minHeight: compact ? 90 : 110, resize: "vertical" }}
+          style={{ ...inp, minHeight: 80 }}
           value={nota}
           onChange={(e) => setNota(e.target.value)}
-          placeholder="Escribí una nota concreta sobre esta empresa..."
+          placeholder="Escribí una nota..."
         />
 
-        <button
-          onClick={guardarNota}
-          disabled={guardando || !nota.trim()}
-          style={{ ...btn("#FF6B35"), marginTop: 10, opacity: guardando || !nota.trim() ? 0.6 : 1 }}
-        >
-          {guardando ? "Guardando..." : "💾 Guardar nota"}
+        <button onClick={guardarNota} style={{ ...btn("#FF6B35"), marginTop: 10 }}>
+          💾 Guardar nota
         </button>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {notas.length === 0 ? (
-          <div style={card({ color: C.muted, fontSize: 13 })}>Todavía no hay notas cargadas para esta empresa.</div>
-        ) : (
-          notas.map((n, i) => (
-            <div key={i} style={card({ marginBottom: 0 })}>
-              <div style={{ fontSize: 12, color: "#9CA3AF" }}>
-                {new Date(n.created_at).toLocaleString("es-AR")}
-              </div>
-              <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.6 }}>{n.contenido}</div>
-            </div>
-          ))
-        )}
-      </div>
+      {notas.map((n, i) => (
+        <div key={i} style={card({ marginBottom: 10 })}>
+          <div style={{ fontSize: 12, color: "#9CA3AF" }}>
+            {new Date(n.created_at).toLocaleString()}
+          </div>
+          <div style={{ marginTop: 5 }}>{n.contenido}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -484,14 +453,10 @@ function Dashboard({ setTab }) {
   );
 }
 
-function Empresas({ onOpenEmpresa }) {
+function Empresas() {
   return (
     <div>
-      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>🏢 Empresas</div>
-      <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>
-        Entrá a cada empresa para ver dashboard, notas, planes y control operativo.
-      </div>
-
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>🏢 Empresas</div>
       {CLIENTES.map((cl) => (
         <div key={cl.id} style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -515,19 +480,7 @@ function Empresas({ onOpenEmpresa }) {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
             {EMPRESAS.filter((e) => e.clienteId === cl.id).map((e) => (
-              <button
-                key={e.id}
-                onClick={() => onOpenEmpresa(e.id)}
-                style={{
-                  ...card({
-                    borderLeft: `3px solid ${e.color}`,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    transition: "transform .15s ease, border-color .15s ease, box-shadow .15s ease"
-                  }),
-                  background: C.card
-                }}
-              >
+              <div key={e.id} style={card({ borderLeft: `3px solid ${e.color}` })}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                   <div
                     style={{
@@ -539,296 +492,24 @@ function Empresas({ onOpenEmpresa }) {
                       alignItems: "center",
                       justifyContent: "center",
                       fontWeight: 800,
-                      fontSize: 14,
-                      color: "white"
+                      fontSize: 14
                     }}
                   >
                     {e.initial}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, color: C.text }}>{e.nombre}</div>
+                    <div style={{ fontWeight: 700 }}>{e.nombre}</div>
                     <span style={badge(e.color)}>{e.tipo}</span>
                   </div>
                 </div>
 
-                <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{e.rol}</div>
-                {e.sucursales > 1 && <div style={{ fontSize: 11, color: C.dim, marginBottom: 10 }}>📍 {e.sucursales} sucursales</div>}
-                <div style={{ fontSize: 12, color: e.color, fontWeight: 700 }}>Abrir panel de empresa →</div>
-              </button>
+                <div style={{ fontSize: 12, color: C.muted }}>{e.rol}</div>
+                {e.sucursales > 1 && <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>📍 {e.sucursales} sucursales</div>}
+              </div>
             ))}
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function EmpresaDetalle({ empresaId, onBack }) {
-  const empresa = EMPRESAS.find((e) => e.id === empresaId);
-  const cliente = CLIENTES.find((c) => c.id === empresa?.clienteId);
-  const [subtab, setSubtab] = useState("resumen");
-  const [dashboardText, setDashboardText] = useState("");
-  const [dashboardLoading, setDashboardLoading] = useState(false);
-  const [controlItems, setControlItems] = useState({});
-  const [accion, setAccion] = useState("");
-  const [acciones, setAcciones] = useState([]);
-
-  useEffect(() => {
-    if (!empresa) return;
-
-    setAcciones((prev) => {
-      if (prev.length > 0) return prev;
-      return [
-        { id: 1, titulo: `Revisión operativa de ${empresa.nombre}`, estado: "Pendiente" },
-        { id: 2, titulo: `Próximo seguimiento con ${cliente?.nombre || "cliente"}`, estado: "En curso" }
-      ];
-    });
-  }, [empresaId]);
-
-  if (!empresa) {
-    return (
-      <div style={card()}>
-        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Empresa no encontrada</div>
-        <button onClick={onBack} style={btn("#FF6B35")}>← Volver</button>
-      </div>
-    );
-  }
-
-  const controlBase = [
-    "Seguimiento semanal realizado",
-    "Notas operativas cargadas",
-    "Plan de acción actualizado",
-    "Próxima reunión definida"
-  ];
-
-  const generarDashboard = async () => {
-    setDashboardLoading(true);
-    setDashboardText("");
-
-    const prompt = `Empresa: ${empresa.nombre}
-Cliente: ${cliente?.nombre || "-"}
-Tipo: ${empresa.tipo}
-Rol: ${empresa.rol}
-Generá un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y próximos pasos.`;
-
-    await callAI(
-      "Sos un consultor de gestión y operaciones para PyMEs argentinas. Generás resúmenes ejecutivos claros y accionables.",
-      prompt,
-      (t) => setDashboardText(t)
-    );
-
-    setDashboardLoading(false);
-  };
-
-  const agregarAccion = () => {
-    if (!accion.trim()) return;
-    setAcciones((prev) => [{ id: Date.now(), titulo: accion.trim(), estado: "Pendiente" }, ...prev]);
-    setAccion("");
-  };
-
-  const toggleControl = (idx) => {
-    setControlItems((prev) => ({ ...prev, [idx]: !prev[idx] }));
-  };
-
-  const subtabs = [
-    { id: "resumen", label: "Resumen" },
-    { id: "notas", label: "Notas" },
-    { id: "dashboard", label: "Dashboard" },
-    { id: "planes", label: "Planes" },
-    { id: "control", label: "Control" }
-  ];
-
-  return (
-    <div>
-      <button onClick={onBack} style={{ ...btn(empresa.color, true), marginBottom: 16 }}>← Volver a empresas</button>
-
-      <div style={{ ...card({ marginBottom: 18, borderLeft: `4px solid ${empresa.color}` }) }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: 14,
-                background: empresa.color,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 800,
-                fontSize: 18,
-                color: "white"
-              }}
-            >
-              {empresa.initial}
-            </div>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{empresa.nombre}</div>
-              <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{empresa.rol}</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                <span style={badge(empresa.color)}>{empresa.tipo}</span>
-                {cliente && <span style={badge(cliente.color)}>Cliente: {cliente.nombre}</span>}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(90px, 1fr))", gap: 10, flex: 1, minWidth: 280 }}>
-            <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: C.muted }}>Sucursales</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: empresa.color }}>{empresa.sucursales}</div>
-            </div>
-            <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: C.muted }}>Módulos activos</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: empresa.color }}>4</div>
-            </div>
-            <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: C.muted }}>Estado</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#2EC4B6" }}>Activo</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
-        {subtabs.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setSubtab(item.id)}
-            style={{
-              ...btn(subtab === item.id ? empresa.color : "#2A2D3E"),
-              fontSize: 12,
-              color: subtab === item.id ? "white" : C.text,
-              borderColor: subtab === item.id ? empresa.color : C.border
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      {subtab === "resumen" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 14 }}>
-          <div style={card()}>
-            <div style={{ fontWeight: 700, marginBottom: 10, color: empresa.color }}>Resumen operativo</div>
-            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
-              Este espacio concentra la operación de <strong style={{ color: C.text }}>{empresa.nombre}</strong>. Desde acá Ale puede registrar notas,
-              preparar dashboards mensuales, definir planes de acción y llevar el control operativo de la cuenta sin dispersar la información.
-            </div>
-            <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-              <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 11, color: C.muted }}>Cliente</div>
-                <div style={{ fontWeight: 700, marginTop: 4 }}>{cliente?.nombre || "-"}</div>
-              </div>
-              <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 11, color: C.muted }}>Enfoque</div>
-                <div style={{ fontWeight: 700, marginTop: 4 }}>{empresa.tipo}</div>
-              </div>
-            </div>
-          </div>
-
-          <div style={card()}>
-            <div style={{ fontWeight: 700, marginBottom: 10, color: empresa.color }}>Accesos rápidos</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {["Abrir notas de la empresa", "Generar dashboard mensual", "Registrar plan de acción", "Actualizar control operativo"].map((item, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setSubtab(["notas", "dashboard", "planes", "control"][idx])}
-                  style={{ ...btn(empresa.color, true), textAlign: "left" }}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {subtab === "notas" && <NotasEmpresa empresaFija={empresa.nombre} compact />}
-
-      {subtab === "dashboard" && (
-        <div>
-          <div style={card({ marginBottom: 14 })}>
-            <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Dashboard ejecutivo</div>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>
-              Generá un resumen mensual listo para presentar a los dueños de la empresa.
-            </div>
-            <button onClick={generarDashboard} disabled={dashboardLoading} style={{ ...btn(empresa.color), opacity: dashboardLoading ? 0.6 : 1 }}>
-              {dashboardLoading ? "Generando..." : "✨ Generar dashboard con IA"}
-            </button>
-            <AIBox text={dashboardText} loading={dashboardLoading} />
-          </div>
-        </div>
-      )}
-
-      {subtab === "planes" && (
-        <div style={card()}>
-          <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Planes de acción</div>
-          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-            <input
-              style={{ ...inp, flex: 1 }}
-              placeholder="Escribí una acción concreta para esta empresa..."
-              value={accion}
-              onChange={(e) => setAccion(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && agregarAccion()}
-            />
-            <button onClick={agregarAccion} style={btn(empresa.color)}>Agregar</button>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {acciones.map((item) => (
-              <div key={item.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>{item.titulo}</div>
-                <div style={{ fontSize: 12, color: C.muted }}>{item.estado}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {subtab === "control" && (
-        <div style={card()}>
-          <div style={{ fontWeight: 700, marginBottom: 10, color: empresa.color }}>Control operativo</div>
-          <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>
-            Checklist base para asegurar seguimiento de la cuenta.
-          </div>
-
-          {controlBase.map((item, idx) => (
-            <div
-              key={idx}
-              onClick={() => toggleControl(idx)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "10px 12px",
-                background: controlItems[idx] ? empresa.color + "11" : C.bg,
-                borderRadius: 8,
-                cursor: "pointer",
-                border: `1px solid ${controlItems[idx] ? empresa.color + "44" : C.border}`,
-                marginBottom: 8
-              }}
-            >
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 5,
-                  border: `2px solid ${controlItems[idx] ? empresa.color : "#4B5563"}`,
-                  background: controlItems[idx] ? empresa.color : "transparent",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  flexShrink: 0,
-                  color: "white"
-                }}
-              >
-                {controlItems[idx] ? "✓" : ""}
-              </div>
-              <span style={{ fontSize: 13, color: controlItems[idx] ? C.text : C.muted }}>{item}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -1747,24 +1428,7 @@ const TABS = [
 
 export default function App() {
   const [tab, setTab] = useState("dashboard");
-  const [empresaActivaId, setEmpresaActivaId] = useState(null);
   const logoSrc = "/logo-altamiranda.png";
-
-  const openEmpresa = (id) => {
-    setEmpresaActivaId(id);
-    setTab("empresas");
-  };
-
-  const closeEmpresa = () => {
-    setEmpresaActivaId(null);
-  };
-
-  const cambiarTab = (nextTab) => {
-    setTab(nextTab);
-    if (nextTab !== "empresas") {
-      setEmpresaActivaId(null);
-    }
-  };
 
   return (
     <div style={{ fontFamily: "'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh", color: C.text }}>
@@ -1825,7 +1489,7 @@ export default function App() {
         {TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => cambiarTab(t.id)}
+            onClick={() => setTab(t.id)}
             style={{
               background: tab === t.id ? "#FF6B35" : "transparent",
               color: tab === t.id ? "white" : C.muted,
@@ -1843,10 +1507,9 @@ export default function App() {
         ))}
       </div>
 
-      <div style={{ padding: "20px", maxWidth: empresaActivaId ? 1080 : 860, margin: "0 auto" }}>
+      <div style={{ padding: "20px", maxWidth: 860, margin: "0 auto" }}>
         {tab === "dashboard" && <Dashboard setTab={setTab} />}
-        {tab === "empresas" && !empresaActivaId && <Empresas onOpenEmpresa={openEmpresa} />}
-        {tab === "empresas" && empresaActivaId && <EmpresaDetalle empresaId={empresaActivaId} onBack={closeEmpresa} />}
+        {tab === "empresas" && <Empresas />}
         {tab === "diagnostico" && <Diagnostico />}
         {tab === "auditoria" && <Auditoria />}
         {tab === "supervision" && <Supervision />}
