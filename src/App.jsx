@@ -1517,6 +1517,7 @@ export default function App() {
         {tab === "manaos" && <Manaos />}
         {tab === "planes" && <Planes />}
         {tab === "asistente" && <Asistente />}
+        {tab === "notas" && <NotasEmpresa />}
       </div>
     </div>
   );
