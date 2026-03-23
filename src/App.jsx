@@ -54,16 +54,10 @@ const EMPRESAS = [
   { id: 6, nombre: "DNH", clienteId: "nestor", color: "#4CC9F0", initial: "DN", rol: "Supervisión y auditoría", tipo: "auditoria", sucursales: 1 },
 ];
 
-function NotasEmpresa({ empresaFija = "", compact = false }) {
-  const empresaInicial = empresaFija || EMPRESAS[0].nombre;
-  const [empresa, setEmpresa] = useState(empresaInicial);
+function NotasEmpresa() {
+  const [empresa, setEmpresa] = useState(EMPRESAS[0].nombre);
   const [nota, setNota] = useState("");
   const [notas, setNotas] = useState([]);
-  const [guardando, setGuardando] = useState(false);
-
-  useEffect(() => {
-    setEmpresa(empresaFija || EMPRESAS[0].nombre);
-  }, [empresaFija]);
 
   useEffect(() => {
     cargarNotas();
@@ -72,82 +66,57 @@ function NotasEmpresa({ empresaFija = "", compact = false }) {
   const cargarNotas = async () => {
     const data = await dbGet("notas_empresas");
     if (data) {
-      const filtradas = data.filter((n) => n.empresa === empresa);
+      const filtradas = data.filter(n => n.empresa === empresa);
       setNotas(filtradas);
     }
   };
 
   const guardarNota = async () => {
     if (!nota.trim()) return;
-    setGuardando(true);
 
     await dbInsert("notas_empresas", {
       empresa,
-      contenido: nota.trim(),
+      contenido: nota,
       tipo: "manual"
     });
 
     setNota("");
-    await cargarNotas();
-    setGuardando(false);
+    cargarNotas();
   };
 
   return (
     <div>
-      {!compact && (
-        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
-          🧠 Notas por Empresa
-        </div>
-      )}
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
+        🧠 Notas por Empresa
+      </div>
 
       <div style={card({ marginBottom: 20 })}>
-        {!empresaFija && (
-          <div style={{ marginBottom: 14 }}>
-            <span style={lbl}>Empresa</span>
-            <select style={sel} value={empresa} onChange={(e) => setEmpresa(e.target.value)}>
-              {EMPRESAS.map((e) => <option key={e.id}>{e.nombre}</option>)}
-            </select>
-          </div>
-        )}
-
-        {empresaFija && (
-          <div style={{ marginBottom: 14 }}>
-            <span style={lbl}>Empresa</span>
-            <div style={{ ...inp, display: "flex", alignItems: "center", opacity: 0.9 }}>{empresa}</div>
-          </div>
-        )}
+        <span style={lbl}>Empresa</span>
+        <select style={sel} value={empresa} onChange={(e) => setEmpresa(e.target.value)}>
+          {EMPRESAS.map(e => <option key={e.id}>{e.nombre}</option>)}
+        </select>
 
         <span style={lbl}>Nueva nota</span>
         <textarea
-          style={{ ...inp, minHeight: compact ? 90 : 110, resize: "vertical" }}
+          style={{ ...inp, minHeight: 80 }}
           value={nota}
           onChange={(e) => setNota(e.target.value)}
-          placeholder="Escribí una nota concreta sobre esta empresa..."
+          placeholder="Escribí una nota..."
         />
 
-        <button
-          onClick={guardarNota}
-          disabled={guardando || !nota.trim()}
-          style={{ ...btn("#FF6B35"), marginTop: 10, opacity: guardando || !nota.trim() ? 0.6 : 1 }}
-        >
-          {guardando ? "Guardando..." : "💾 Guardar nota"}
+        <button onClick={guardarNota} style={{ ...btn("#FF6B35"), marginTop: 10 }}>
+          💾 Guardar nota
         </button>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {notas.length === 0 ? (
-          <div style={card({ color: C.muted, fontSize: 13 })}>Todavía no hay notas cargadas para esta empresa.</div>
-        ) : (
-          notas.map((n, i) => (
-            <div key={i} style={card({ marginBottom: 0 })}>
-              <div style={{ fontSize: 12, color: "#9CA3AF" }}>
-                {new Date(n.created_at).toLocaleString("es-AR")}
-              </div>
-              <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.6 }}>{n.contenido}</div>
-            </div>
-          ))
-        )}
-      </div>
+      {notas.map((n, i) => (
+        <div key={i} style={card({ marginBottom: 10 })}>
+          <div style={{ fontSize: 12, color: "#9CA3AF" }}>
+            {new Date(n.created_at).toLocaleString()}
+          </div>
+          <div style={{ marginTop: 5 }}>{n.contenido}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -484,6 +453,7 @@ function Dashboard({ setTab }) {
   );
 }
 
+
 function Empresas({ onOpenEmpresa }) {
   return (
     <div>
@@ -572,34 +542,56 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [controlItems, setControlItems] = useState({});
   const [accion, setAccion] = useState("");
   const [acciones, setAcciones] = useState([]);
+  const [inicio, setInicio] = useState("");
+  const [plazo, setPlazo] = useState("");
+  const [estadoPlan, setEstadoPlan] = useState("Pendiente");
+  const [iaContexto, setIaContexto] = useState("");
+  const [iaPlan, setIaPlan] = useState("");
+  const [iaLoading, setIaLoading] = useState(false);
+  const [guardandoPlan, setGuardandoPlan] = useState(false);
 
   useEffect(() => {
-    if (!empresa) return;
-
-    setAcciones((prev) => {
-      if (prev.length > 0) return prev;
-      return [
-        { id: 1, titulo: `Revisión operativa de ${empresa.nombre}`, estado: "Pendiente" },
-        { id: 2, titulo: `Próximo seguimiento con ${cliente?.nombre || "cliente"}`, estado: "En curso" }
-      ];
-    });
+    if (empresa) cargarPlanes();
   }, [empresaId]);
 
-  if (!empresa) {
-    return (
-      <div style={card()}>
-        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Empresa no encontrada</div>
-        <button onClick={onBack} style={btn("#FF6B35")}>← Volver</button>
-      </div>
-    );
-  }
+  const cargarPlanes = async () => {
+    const data = await dbGet("planes_empresas");
+    if (data && empresa) {
+      const filtrados = data.filter((p) => p.empresa === empresa.nombre);
+      setAcciones(filtrados);
+    }
+  };
 
-  const controlBase = [
-    "Seguimiento semanal realizado",
-    "Notas operativas cargadas",
-    "Plan de acción actualizado",
-    "Próxima reunión definida"
-  ];
+  const agregarAccion = async () => {
+    if (!accion.trim() || !empresa) return;
+    setGuardandoPlan(true);
+
+    await dbInsert("planes_empresas", {
+      empresa: empresa.nombre,
+      titulo: accion.trim(),
+      inicio: inicio || null,
+      plazo: plazo || null,
+      estado: estadoPlan || "Pendiente",
+      tipo: "manual"
+    });
+
+    setAccion("");
+    setInicio("");
+    setPlazo("");
+    setEstadoPlan("Pendiente");
+    await cargarPlanes();
+    setGuardandoPlan(false);
+  };
+
+  const actualizarEstadoPlan = async (planId, nuevoEstado) => {
+    await dbUpdate("planes_empresas", planId, { estado: nuevoEstado });
+    await cargarPlanes();
+  };
+
+  const marcarFinalizado = async (plan) => {
+    const nuevoEstado = plan.estado === "Finalizado" ? "Pendiente" : "Finalizado";
+    await actualizarEstadoPlan(plan.id, nuevoEstado);
+  };
 
   const generarDashboard = async () => {
     setDashboardLoading(true);
@@ -620,15 +612,69 @@ Generá un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y pr
     setDashboardLoading(false);
   };
 
-  const agregarAccion = () => {
-    if (!accion.trim()) return;
-    setAcciones((prev) => [{ id: Date.now(), titulo: accion.trim(), estado: "Pendiente" }, ...prev]);
-    setAccion("");
+  const generarPlanIA = async () => {
+    if (!empresa) return;
+    setIaLoading(true);
+    setIaPlan("");
+
+    const prompt = `Empresa: ${empresa.nombre}
+Cliente: ${cliente?.nombre || "-"}
+Tipo: ${empresa.tipo}
+Rol actual de Alejandro: ${empresa.rol}
+Contexto adicional: ${iaContexto || "sin contexto adicional"}
+
+Generá un plan de acción profesional y concreto para esta empresa. Necesito:
+1. una acción principal en una sola línea
+2. fecha sugerida de inicio
+3. fecha sugerida de finalización
+4. estado inicial sugerido
+5. breve justificación ejecutiva
+
+Respondé en formato claro y breve.`;
+
+    await callAI(
+      "Sos un consultor senior en operaciones y planes de acción para PyMEs. Tus recomendaciones son concretas, ejecutables y profesionales.",
+      prompt,
+      (t) => setIaPlan(t)
+    );
+
+    setIaLoading(false);
   };
 
-  const toggleControl = (idx) => {
-    setControlItems((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  const guardarPlanIA = async () => {
+    if (!iaPlan.trim() || !empresa) return;
+    setGuardandoPlan(true);
+
+    const titulo = iaPlan.split("\n").find((line) => line.trim())?.replace(/^[-•\d.)\s]+/, "").trim() || `Plan IA para ${empresa.nombre}`;
+
+    await dbInsert("planes_empresas", {
+      empresa: empresa.nombre,
+      titulo,
+      inicio: inicio || null,
+      plazo: plazo || null,
+      estado: estadoPlan || "Pendiente",
+      tipo: "ia"
+    });
+
+    await cargarPlanes();
+    setGuardandoPlan(false);
   };
+
+  if (!empresa) {
+    return (
+      <div style={card()}>
+        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Empresa no encontrada</div>
+        <button onClick={onBack} style={btn("#FF6B35")}>← Volver</button>
+      </div>
+    );
+  }
+
+  const controlBase = [
+    "Seguimiento semanal realizado",
+    "Notas operativas cargadas",
+    "Plan de acción actualizado",
+    "Próxima reunión definida"
+  ];
 
   const subtabs = [
     { id: "resumen", label: "Resumen" },
@@ -677,8 +723,8 @@ Generá un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y pr
               <div style={{ fontSize: 22, fontWeight: 800, color: empresa.color }}>{empresa.sucursales}</div>
             </div>
             <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
-              <div style={{ fontSize: 11, color: C.muted }}>Módulos activos</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: empresa.color }}>4</div>
+              <div style={{ fontSize: 11, color: C.muted }}>Planes activos</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: empresa.color }}>{acciones.length}</div>
             </div>
             <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
               <div style={{ fontSize: 11, color: C.muted }}>Estado</div>
@@ -760,26 +806,119 @@ Generá un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y pr
       )}
 
       {subtab === "planes" && (
-        <div style={card()}>
-          <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Planes de acción</div>
-          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-            <input
-              style={{ ...inp, flex: 1 }}
-              placeholder="Escribí una acción concreta para esta empresa..."
-              value={accion}
-              onChange={(e) => setAccion(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && agregarAccion()}
-            />
-            <button onClick={agregarAccion} style={btn(empresa.color)}>Agregar</button>
+        <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 14 }}>
+          <div style={card()}>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Planes de acción</div>
+
+            <div style={{ marginBottom: 10 }}>
+              <span style={lbl}>Acción</span>
+              <input
+                style={{ ...inp, flex: 1 }}
+                placeholder="Escribí una acción concreta para esta empresa..."
+                value={accion}
+                onChange={(e) => setAccion(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && agregarAccion()}
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 10, marginBottom: 14 }}>
+              <div>
+                <span style={lbl}>Inicio</span>
+                <input style={inp} type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+              </div>
+              <div>
+                <span style={lbl}>Plazo</span>
+                <input style={inp} type="date" value={plazo} onChange={(e) => setPlazo(e.target.value)} />
+              </div>
+              <div>
+                <span style={lbl}>Estado</span>
+                <select style={sel} value={estadoPlan} onChange={(e) => setEstadoPlan(e.target.value)}>
+                  <option>Pendiente</option>
+                  <option>En curso</option>
+                  <option>Finalizado</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
+                <button onClick={agregarAccion} disabled={guardandoPlan || !accion.trim()} style={{ ...btn(empresa.color), opacity: guardandoPlan || !accion.trim() ? 0.6 : 1 }}>
+                  {guardandoPlan ? "Guardando..." : "Agregar"}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {acciones.length === 0 ? (
+                <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, color: C.muted, fontSize: 13 }}>
+                  Todavía no hay planes guardados para esta empresa.
+                </div>
+              ) : (
+                acciones.map((item) => (
+                  <div key={item.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 6 }}>
+                      <div style={{ fontWeight: 700 }}>{item.titulo}</div>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.muted, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={item.estado === "Finalizado"}
+                          onChange={() => marcarFinalizado(item)}
+                        />
+                        Finalizado
+                      </label>
+                    </div>
+
+                    <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+                      Inicio: {item.inicio || "-"} | Plazo: {item.plazo || "-"}
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <span style={badge(item.estado === "Finalizado" ? "#2EC4B6" : item.estado === "En curso" ? "#F7B731" : empresa.color)}>
+                        {item.estado}
+                      </span>
+
+                      <select
+                        style={sel}
+                        value={item.estado}
+                        onChange={(e) => actualizarEstadoPlan(item.id, e.target.value)}
+                      >
+                        <option>Pendiente</option>
+                        <option>En curso</option>
+                        <option>Finalizado</option>
+                      </select>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {acciones.map((item) => (
-              <div key={item.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>{item.titulo}</div>
-                <div style={{ fontSize: 12, color: C.muted }}>{item.estado}</div>
-              </div>
-            ))}
+          <div style={card()}>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Generar plan con IA</div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+              Pedile a la IA una recomendación profesional para esta empresa y guardala en el panel.
+            </div>
+
+            <span style={lbl}>Contexto adicional</span>
+            <textarea
+              style={{ ...inp, minHeight: 90, resize: "vertical", marginBottom: 12 }}
+              value={iaContexto}
+              onChange={(e) => setIaContexto(e.target.value)}
+              placeholder="Ej: foco en ventas, reorganización, seguimiento comercial, problemas operativos..."
+            />
+
+            <button onClick={generarPlanIA} disabled={iaLoading} style={{ ...btn(empresa.color), width: "100%", opacity: iaLoading ? 0.6 : 1 }}>
+              {iaLoading ? "Generando..." : "✨ Generar plan con IA"}
+            </button>
+
+            <AIBox text={iaPlan} loading={iaLoading} />
+
+            {iaPlan && (
+              <button
+                onClick={guardarPlanIA}
+                disabled={guardandoPlan}
+                style={{ ...btn(empresa.color, true), width: "100%", marginTop: 12, opacity: guardandoPlan ? 0.6 : 1 }}
+              >
+                {guardandoPlan ? "Guardando..." : "💾 Guardar recomendación IA"}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -794,7 +933,7 @@ Generá un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y pr
           {controlBase.map((item, idx) => (
             <div
               key={idx}
-              onClick={() => toggleControl(idx)}
+              onClick={() => setControlItems((prev) => ({ ...prev, [idx]: !prev[idx] }))}
               style={{
                 display: "flex",
                 alignItems: "center",
