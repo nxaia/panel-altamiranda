@@ -539,9 +539,9 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [subtab, setSubtab] = useState("resumen");
   const [dashboardText, setDashboardText] = useState("");
   const [dashboardLoading, setDashboardLoading] = useState(false);
-  const [controlItems, setControlItems] = useState({});
+  const [controlItems, setControlItems] = useState([]);
   const [nuevoControl, setNuevoControl] = useState("");
-  const [controlesExtra, setControlesExtra] = useState([]);
+  const [guardandoControl, setGuardandoControl] = useState(false);
   const [accion, setAccion] = useState("");
   const [acciones, setAcciones] = useState([]);
   const [inicio, setInicio] = useState("");
@@ -553,20 +553,9 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [guardandoPlan, setGuardandoPlan] = useState(false);
 
   useEffect(() => {
-    if (empresa) cargarPlanes();
-  }, [empresaId]);
-
-  useEffect(() => {
-    if (!empresa) return;
-    const saved = localStorage.getItem(`controles_extra_${empresa.id}`);
-    if (saved) {
-      try {
-        setControlesExtra(JSON.parse(saved));
-      } catch {
-        setControlesExtra([]);
-      }
-    } else {
-      setControlesExtra([]);
+    if (empresa) {
+      cargarPlanes();
+      cargarControles();
     }
   }, [empresaId]);
 
@@ -576,6 +565,54 @@ function EmpresaDetalle({ empresaId, onBack }) {
       const filtrados = data.filter((p) => p.empresa === empresa.nombre);
       setAcciones(filtrados);
     }
+  };
+
+  const cargarControles = async () => {
+    if (!empresa) return;
+
+    const data = await dbGet("control_empresas");
+    if (!data) return;
+
+    const filtrados = data.filter((item) => item.empresa === empresa.nombre);
+
+    if (filtrados.length === 0) {
+      for (const texto of controlBase) {
+        await dbInsert("control_empresas", {
+          empresa: empresa.nombre,
+          texto,
+          estado: false,
+          tipo: "base"
+        });
+      }
+
+      const recargados = await dbGet("control_empresas");
+      const nuevos = recargados ? recargados.filter((item) => item.empresa === empresa.nombre) : [];
+      setControlItems(nuevos);
+      return;
+    }
+
+    setControlItems(filtrados);
+  };
+
+  const agregarControl = async () => {
+    if (!nuevoControl.trim() || !empresa) return;
+    setGuardandoControl(true);
+
+    await dbInsert("control_empresas", {
+      empresa: empresa.nombre,
+      texto: nuevoControl.trim(),
+      estado: false,
+      tipo: "manual"
+    });
+
+    setNuevoControl("");
+    await cargarControles();
+    setGuardandoControl(false);
+  };
+
+  const toggleControl = async (item) => {
+    await dbUpdate("control_empresas", item.id, { estado: !item.estado });
+    await cargarControles();
   };
 
   const agregarAccion = async () => {
@@ -676,14 +713,6 @@ Respondé en formato claro y breve.`;
     setGuardandoPlan(false);
   };
 
-  const agregarControlManual = () => {
-    if (!nuevoControl.trim() || !empresa) return;
-    const actualizados = [...controlesExtra, nuevoControl.trim()];
-    setControlesExtra(actualizados);
-    setNuevoControl("");
-    localStorage.setItem(`controles_extra_${empresa.id}`, JSON.stringify(actualizados));
-  };
-
   if (!empresa) {
     return (
       <div style={card()}>
@@ -699,8 +728,6 @@ Respondé en formato claro y breve.`;
     "Plan de acción actualizado",
     "Próxima reunión definida"
   ];
-
-  const controlesCompletos = [...controlBase, ...controlesExtra];
 
   const subtabs = [
     { id: "resumen", label: "Resumen" },
@@ -962,53 +989,65 @@ Respondé en formato claro y breve.`;
               placeholder="Agregar nuevo ítem de control..."
               value={nuevoControl}
               onChange={(e) => setNuevoControl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && agregarControlManual()}
+              onKeyDown={(e) => e.key === "Enter" && agregarControl()}
             />
             <button
-              onClick={agregarControlManual}
-              disabled={!nuevoControl.trim()}
-              style={{ ...btn(empresa.color), opacity: !nuevoControl.trim() ? 0.6 : 1 }}
+              onClick={agregarControl}
+              disabled={guardandoControl || !nuevoControl.trim()}
+              style={{ ...btn(empresa.color), opacity: guardandoControl || !nuevoControl.trim() ? 0.6 : 1 }}
             >
-              Agregar
+              {guardandoControl ? "Guardando..." : "Agregar"}
             </button>
           </div>
 
-          {controlesCompletos.map((item, idx) => (
-            <div
-              key={`${idx}-${item}`}
-              onClick={() => setControlItems((prev) => ({ ...prev, [idx]: !prev[idx] }))}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "10px 12px",
-                background: controlItems[idx] ? empresa.color + "11" : C.bg,
-                borderRadius: 8,
-                cursor: "pointer",
-                border: `1px solid ${controlItems[idx] ? empresa.color + "44" : C.border}`,
-                marginBottom: 8
-              }}
-            >
+          {controlItems.length === 0 ? (
+            <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, fontSize: 13, color: C.muted }}>
+              Cargando checklist...
+            </div>
+          ) : (
+            controlItems.map((item) => (
               <div
+                key={item.id}
+                onClick={() => toggleControl(item)}
                 style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 5,
-                  border: `2px solid ${controlItems[idx] ? empresa.color : "#4B5563"}`,
-                  background: controlItems[idx] ? empresa.color : "transparent",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  flexShrink: 0,
-                  color: "white"
+                  gap: 12,
+                  padding: "10px 12px",
+                  background: item.estado ? empresa.color + "11" : C.bg,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  border: `1px solid ${item.estado ? empresa.color + "44" : C.border}`,
+                  marginBottom: 8
                 }}
               >
-                {controlItems[idx] ? "✓" : ""}
+                <div
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 5,
+                    border: `2px solid ${item.estado ? empresa.color : "#4B5563"}`,
+                    background: item.estado ? empresa.color : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    flexShrink: 0,
+                    color: "white"
+                  }}
+                >
+                  {item.estado ? "✓" : ""}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: item.estado ? C.text : C.muted }}>{item.texto}</div>
+                  <div style={{ fontSize: 11, color: C.dim, marginTop: 3 }}>
+                    {item.tipo === "manual" ? "Manual" : "Base"}
+                  </div>
+                </div>
               </div>
-              <span style={{ fontSize: 13, color: controlItems[idx] ? C.text : C.muted }}>{item}</span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
     </div>
