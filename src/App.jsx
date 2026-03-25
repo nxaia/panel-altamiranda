@@ -69,6 +69,68 @@ function NotasEmpresa() {
       const filtradas = data.filter(n => n.empresa === empresa);
       setNotas(filtradas);
     }
+    }
+
+// ================= COMPONENTE ANALISIS =================
+function AnalisisIA({ empresa }) {
+  const [analisis, setAnalisis] = useState([]);
+
+  useEffect(() => {
+    cargarAnalisis();
+  }, [empresa]);
+
+  const cargarAnalisis = async () => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/analisis_empresas`, {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`
+      }
+    });
+
+    const data = await res.json();
+    const filtrados = data.filter(a => a.empresa === empresa.nombre);
+    setAnalisis(filtrados);
+  };
+
+  const ejecutarAnalisis = async () => {
+    const resultado = await generarAnalisisIA(empresa.nombre);
+
+    await fetch(`${SUPABASE_URL}/rest/v1/analisis_empresas`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        empresa: empresa.nombre,
+        contenido: resultado
+      })
+    });
+
+    cargarAnalisis();
+  };
+
+  return (
+    <div>
+      <button onClick={ejecutarAnalisis}>
+        🤖 Analizar empresa con IA
+      </button>
+
+      <div style={{ marginTop: 20 }}>
+        {analisis.map((a, i) => (
+          <div key={i} style={{ marginBottom: 20 }}>
+            <strong>{new Date(a.created_at).toLocaleString()}</strong>
+
+            <pre style={{ whiteSpace: "pre-wrap" }}>
+              {JSON.stringify(a.contenido, null, 2)}
+            </pre>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
   };
 
   const guardarNota = async () => {
