@@ -2,7 +2,9 @@
   "name": "Altamiranda Gestión",
   "short_name": "Altamiranda",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0F1117",
   "theme_color": "#0F1117",
   "icons": [
