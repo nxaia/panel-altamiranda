@@ -458,7 +458,33 @@ function AlertaTATITO() {
   );
 }
 
-function Dashboard({ setTab }) {
+
+function Dashboard({ setTab, onOpenEmpresa }) {
+  const [planes, setPlanes] = useState([]);
+  const [analisis, setAnalisis] = useState([]);
+  const [historial, setHistorial] = useState([]);
+  const [notas, setNotas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    cargarDashboard();
+  }, []);
+
+  const cargarDashboard = async () => {
+    setLoading(true);
+    const [planesData, analisisData, historialData, notasData] = await Promise.all([
+      dbGet("planes_empresas"),
+      dbGet("analisis_empresas"),
+      dbGet("planes_empresas_historial"),
+      dbGet("notas_empresas")
+    ]);
+    setPlanes(planesData || []);
+    setAnalisis(analisisData || []);
+    setHistorial(historialData || []);
+    setNotas(notasData || []);
+    setLoading(false);
+  };
+
   const modulos = [
     { tab: "diagnostico", icon: "📋", title: "Diagnóstico Franquicias", desc: "Plan de acción SOL basado en encuesta real", color: "#F7B731" },
     { tab: "auditoria", icon: "🔍", title: "Auditoría", desc: "Checklist presencial SOL, DEPAL, DNH", color: "#E84393" },
@@ -468,25 +494,144 @@ function Dashboard({ setTab }) {
     { tab: "planes", icon: "🎯", title: "Planes IA", desc: "Generá planes de operación", color: "#FF6B35" },
   ];
 
+  const pendientes = planes.filter((p) => p.estado === "Pendiente").length;
+  const enCurso = planes.filter((p) => p.estado === "En curso").length;
+  const finalizados = planes.filter((p) => p.estado === "Finalizado").length;
+  const actividadReciente = [
+    ...(planes || []).slice(0, 4).map((item) => ({
+      id: `p-${item.id}`,
+      tipo: "Plan",
+      empresa: item.empresa,
+      fecha: item.created_at,
+      texto: item.titulo
+    })),
+    ...(analisis || []).slice(0, 4).map((item) => ({
+      id: `a-${item.id}`,
+      tipo: "Análisis IA",
+      empresa: item.empresa,
+      fecha: item.created_at,
+      texto: item.contenido
+    })),
+    ...(historial || []).slice(0, 4).map((item) => ({
+      id: `h-${item.id}`,
+      tipo: "Seguimiento IA",
+      empresa: item.empresa,
+      fecha: item.created_at,
+      texto: item.tipo_evento
+    })),
+    ...(notas || []).slice(0, 4).map((item) => ({
+      id: `n-${item.id}`,
+      tipo: "Nota",
+      empresa: item.empresa,
+      fecha: item.created_at,
+      texto: item.contenido
+    }))
+  ]
+    .filter((x) => x.fecha)
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    .slice(0, 8);
+
+  const empresasAtencion = EMPRESAS.map((empresa) => {
+    const planesEmpresa = planes.filter((p) => p.empresa === empresa.nombre);
+    const analisisEmpresa = analisis.filter((a) => a.empresa === empresa.nombre);
+    const historialEmpresa = historial.filter((h) => h.empresa === empresa.nombre);
+    const notasEmpresa = notas.filter((n) => n.empresa === empresa.nombre);
+    const pendientesEmpresa = planesEmpresa.filter((p) => p.estado === "Pendiente").length;
+    const vencidosEmpresa = planesEmpresa.filter((p) => p.plazo && p.estado !== "Finalizado" && new Date(p.plazo) < new Date()).length;
+    const ultimaFecha = [
+      ...planesEmpresa.map((x) => x.created_at),
+      ...analisisEmpresa.map((x) => x.created_at),
+      ...historialEmpresa.map((x) => x.created_at),
+      ...notasEmpresa.map((x) => x.created_at)
+    ].filter(Boolean).sort().reverse()[0];
+
+    const score = (pendientesEmpresa * 2) + (vencidosEmpresa * 3) + (!ultimaFecha ? 2 : 0);
+    return {
+      ...empresa,
+      pendientesEmpresa,
+      vencidosEmpresa,
+      ultimaFecha,
+      score
+    };
+  }).filter((e) => e.score > 0).sort((a, b) => b.score - a.score).slice(0, 4);
+
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Buenos días, Ale 👋</div>
-        <div style={{ color: C.muted, fontSize: 14, marginBottom: 16 }}>Panel de gestión — 2 clientes · 6 empresas activas</div>
+        <div style={{ color: C.muted, fontSize: 14, marginBottom: 16 }}>Panel ejecutivo con control operativo, IA y visibilidad real por empresa</div>
         <Reloj />
         <AlertaTATITO />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
         {[
-          { label: "Clientes", value: "2", icon: "👤", color: "#FF6B35" },
-          { label: "Empresas", value: "6", icon: "🏢", color: "#2EC4B6" },
-          { label: "Módulos IA", value: "5", icon: "🤖", color: "#9B5DE5" },
+          { label: "Planes totales", value: String(planes.length), icon: "🎯", color: "#FF6B35" },
+          { label: "Pendientes", value: String(pendientes), icon: "⏳", color: "#F7B731" },
+          { label: "En curso", value: String(enCurso), icon: "⚙️", color: "#4CC9F0" },
+          { label: "Finalizados", value: String(finalizados), icon: "✅", color: "#2EC4B6" },
         ].map((s, i) => (
           <div key={i} style={card()}>
             <div style={{ fontSize: 26, marginBottom: 6 }}>{s.icon}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{loading ? "..." : s.value}</div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 14, marginBottom: 24 }}>
+        <div style={card()}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#FF6B35", marginBottom: 12 }}>⚠️ Empresas que requieren atención</div>
+          {empresasAtencion.length === 0 ? (
+            <div style={{ fontSize: 13, color: C.muted }}>No hay alertas críticas ahora mismo.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {empresasAtencion.map((empresa) => (
+                <div key={empresa.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ fontWeight: 700 }}>{empresa.nombre}</div>
+                    <button onClick={() => onOpenEmpresa && onOpenEmpresa(empresa.id)} style={btn(empresa.color, true)}>Abrir</button>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.muted }}>
+                    Pendientes: {empresa.pendientesEmpresa} | Vencidos: {empresa.vencidosEmpresa} | Último movimiento: {empresa.ultimaFecha ? new Date(empresa.ultimaFecha).toLocaleString("es-AR") : "Sin actividad"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={card()}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#9B5DE5", marginBottom: 12 }}>🕘 Actividad reciente</div>
+          {actividadReciente.length === 0 ? (
+            <div style={{ fontSize: 13, color: C.muted }}>Todavía no hay actividad suficiente para mostrar.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {actividadReciente.map((item) => (
+                <div key={item.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
+                    <span style={badge(item.tipo === "Plan" ? "#FF6B35" : item.tipo === "Análisis IA" ? "#9B5DE5" : item.tipo === "Nota" ? "#4CC9F0" : "#2EC4B6")}>{item.tipo}</span>
+                    <span style={{ fontSize: 11, color: C.dim }}>{new Date(item.fecha).toLocaleString("es-AR")}</span>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{item.empresa}</div>
+                  <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{String(item.texto || "").slice(0, 110)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
+        {[
+          { label: "Análisis IA", value: String(analisis.length), icon: "🧠", color: "#9B5DE5" },
+          { label: "Movimientos IA", value: String(historial.length), icon: "📌", color: "#2EC4B6" },
+          { label: "Notas registradas", value: String(notas.length), icon: "📝", color: "#4CC9F0" },
+        ].map((s, i) => (
+          <div key={i} style={card()}>
+            <div style={{ fontSize: 24, marginBottom: 6 }}>{s.icon}</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{loading ? "..." : s.value}</div>
+            <div style={{ fontSize: 12, color: C.muted }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -508,6 +653,7 @@ function Dashboard({ setTab }) {
     </div>
   );
 }
+
 
 
 function Empresas({ onOpenEmpresa }) {
@@ -980,7 +1126,7 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
             <div style={{ fontWeight: 700, marginBottom: 10, color: empresa.color }}>Resumen operativo</div>
             <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
               Este espacio concentra la operación de <strong style={{ color: C.text }}>{empresa.nombre}</strong>. Desde acá Ale puede registrar notas,
-              preparar dashboards mensuales, definir planes de acción y llevar el control operativo de la cuenta sin dispersar la información.
+              preparar dashboards mensuales, definir planes de acción, revisar actividad IA y detectar riesgos sin dispersar la información.
             </div>
             <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
               <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
@@ -991,13 +1137,23 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
                 <div style={{ fontSize: 11, color: C.muted }}>Enfoque</div>
                 <div style={{ fontWeight: 700, marginTop: 4 }}>{empresa.tipo}</div>
               </div>
+              <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 11, color: C.muted }}>Próxima prioridad</div>
+                <div style={{ fontWeight: 700, marginTop: 4 }}>{acciones.find((x) => x.estado !== "Finalizado")?.titulo || "Sin pendientes"}</div>
+              </div>
+              <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 11, color: C.muted }}>Semáforo</div>
+                <div style={{ fontWeight: 700, marginTop: 4, color: acciones.some((x) => x.plazo && x.estado !== "Finalizado" && new Date(x.plazo) < new Date()) ? "#FF6B35" : acciones.filter((x) => x.estado === "Pendiente").length > 0 ? "#F7B731" : "#2EC4B6" }}>
+                  {acciones.some((x) => x.plazo && x.estado !== "Finalizado" && new Date(x.plazo) < new Date()) ? "Crítico" : acciones.filter((x) => x.estado === "Pendiente").length > 0 ? "Atención" : "Ordenado"}
+                </div>
+              </div>
             </div>
           </div>
 
           <div style={card()}>
             <div style={{ fontWeight: 700, marginBottom: 10, color: empresa.color }}>Accesos rápidos</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {["Abrir notas de la empresa", "Generar dashboard mensual", "Registrar plan de acción", "Actualizar control operativo"].map((item, idx) => (
+              {["Abrir notas de la empresa", "Ver dashboard ejecutivo", "Registrar plan de acción", "Actualizar control operativo"].map((item, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSubtab(["notas", "dashboard", "planes", "control"][idx])}
@@ -1015,10 +1171,64 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
 
       {subtab === "dashboard" && (
         <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 14 }}>
+            {[
+              { label: "Pendientes", value: acciones.filter((x) => x.estado === "Pendiente").length, color: "#F7B731" },
+              { label: "En curso", value: acciones.filter((x) => x.estado === "En curso").length, color: "#4CC9F0" },
+              { label: "Finalizados", value: acciones.filter((x) => x.estado === "Finalizado").length, color: "#2EC4B6" },
+              { label: "Análisis IA", value: analisisHistorial.length, color: "#9B5DE5" },
+            ].map((item, idx) => (
+              <div key={idx} style={card()}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: item.color }}>{item.value}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <div style={card()}>
+              <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Estado operativo</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ background: C.bg, borderRadius: 10, padding: 12, fontSize: 13, color: C.text }}>
+                  {acciones.some((x) => x.plazo && x.estado !== "Finalizado" && new Date(x.plazo) < new Date()) ? "⚠️ Hay planes vencidos que requieren atención." : "✅ No hay planes vencidos ahora mismo."}
+                </div>
+                <div style={{ background: C.bg, borderRadius: 10, padding: 12, fontSize: 13, color: C.text }}>
+                  {historialPlanes.length === 0 ? "⚠️ Todavía no hay movimientos IA sobre esta empresa." : `✅ Ya hay ${historialPlanes.length} movimientos IA registrados.`}
+                </div>
+                <div style={{ background: C.bg, borderRadius: 10, padding: 12, fontSize: 13, color: C.text }}>
+                  {analisisHistorial.length === 0 ? "⚠️ No hay análisis cargados todavía." : `🧠 Último análisis: ${new Date(analisisHistorial[0].created_at).toLocaleString("es-AR")}`}
+                </div>
+              </div>
+            </div>
+
+            <div style={card()}>
+              <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Actividad reciente</div>
+              {([...acciones.map((x) => ({ tipo: "Plan", fecha: x.created_at, texto: x.titulo })), ...historialPlanes.map((x) => ({ tipo: getTipoEventoLabel(x.tipo_evento), fecha: x.created_at, texto: x.contenido })), ...analisisHistorial.map((x) => ({ tipo: "Análisis IA", fecha: x.created_at, texto: x.contenido }))].filter((x) => x.fecha).sort((a,b) => new Date(b.fecha) - new Date(a.fecha)).slice(0,5)).length === 0 ? (
+                <div style={{ fontSize: 13, color: C.muted }}>Sin actividad reciente todavía.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[...acciones.map((x) => ({ id: `p-${x.id}`, tipo: "Plan", fecha: x.created_at, texto: x.titulo })), ...historialPlanes.map((x) => ({ id: `h-${x.id}`, tipo: getTipoEventoLabel(x.tipo_evento), fecha: x.created_at, texto: x.contenido })), ...analisisHistorial.map((x) => ({ id: `a-${x.id}`, tipo: "Análisis IA", fecha: x.created_at, texto: x.contenido }))]
+                    .filter((x) => x.fecha)
+                    .sort((a,b) => new Date(b.fecha) - new Date(a.fecha))
+                    .slice(0,5)
+                    .map((item) => (
+                    <div key={item.id} style={{ background: C.bg, borderRadius: 10, padding: 10, border: `1px solid ${C.border}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
+                        <span style={badge(empresa.color)}>{item.tipo}</span>
+                        <span style={{ fontSize: 11, color: C.dim }}>{new Date(item.fecha).toLocaleString("es-AR")}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{String(item.texto || "").slice(0, 120)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div style={card({ marginBottom: 14 })}>
             <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Dashboard ejecutivo</div>
             <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>
-              Generá un resumen mensual listo para presentar a los dueños de la empresa.
+              Ahora esta vista ya resume estado, actividad y alertas. Además podés generar un resumen ejecutivo mensual para presentar al cliente.
             </div>
             <button onClick={generarDashboard} disabled={dashboardLoading} style={{ ...btn(empresa.color), opacity: dashboardLoading ? 0.6 : 1 }}>
               {dashboardLoading ? "Generando..." : "✨ Generar dashboard con IA"}
@@ -2300,7 +2510,7 @@ export default function App() {
       </div>
 
       <div style={{ padding: "20px", maxWidth: empresaActivaId ? 1080 : 860, margin: "0 auto" }}>
-        {tab === "dashboard" && <Dashboard setTab={setTab} />}
+        {tab === "dashboard" && <Dashboard setTab={setTab} onOpenEmpresa={openEmpresa} />}
         {tab === "empresas" && !empresaActivaId && <Empresas onOpenEmpresa={openEmpresa} />}
         {tab === "empresas" && empresaActivaId && <EmpresaDetalle empresaId={empresaActivaId} onBack={closeEmpresa} />}
         {tab === "diagnostico" && <Diagnostico />}
