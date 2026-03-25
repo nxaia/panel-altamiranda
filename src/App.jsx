@@ -54,10 +54,16 @@ const EMPRESAS = [
   { id: 6, nombre: "DNH", clienteId: "nestor", color: "#4CC9F0", initial: "DN", rol: "Supervisión y auditoría", tipo: "auditoria", sucursales: 1 },
 ];
 
-function NotasEmpresa() {
-  const [empresa, setEmpresa] = useState(EMPRESAS[0].nombre);
+function NotasEmpresa({ empresaFija = "", compact = false }) {
+  const empresaInicial = empresaFija || EMPRESAS[0].nombre;
+  const [empresa, setEmpresa] = useState(empresaInicial);
   const [nota, setNota] = useState("");
   const [notas, setNotas] = useState([]);
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    setEmpresa(empresaFija || EMPRESAS[0].nombre);
+  }, [empresaFija]);
 
   useEffect(() => {
     cargarNotas();
@@ -66,119 +72,167 @@ function NotasEmpresa() {
   const cargarNotas = async () => {
     const data = await dbGet("notas_empresas");
     if (data) {
-      const filtradas = data.filter(n => n.empresa === empresa);
+      const filtradas = data.filter((n) => n.empresa === empresa);
       setNotas(filtradas);
     }
-    }
+  };
 
-// ================= COMPONENTE ANALISIS =================
+  const guardarNota = async () => {
+    if (!nota.trim()) return;
+    setGuardando(true);
+
+    await dbInsert("notas_empresas", {
+      empresa,
+      contenido: nota.trim(),
+      tipo: "manual"
+    });
+
+    setNota("");
+    await cargarNotas();
+    setGuardando(false);
+  };
+
+  return (
+    <div>
+      {!compact && (
+        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
+          🧠 Notas por Empresa
+        </div>
+      )}
+
+      <div style={card({ marginBottom: 20 })}>
+        {!empresaFija && (
+          <div style={{ marginBottom: 14 }}>
+            <span style={lbl}>Empresa</span>
+            <select style={sel} value={empresa} onChange={(e) => setEmpresa(e.target.value)}>
+              {EMPRESAS.map((e) => <option key={e.id}>{e.nombre}</option>)}
+            </select>
+          </div>
+        )}
+
+        {empresaFija && (
+          <div style={{ marginBottom: 14 }}>
+            <span style={lbl}>Empresa</span>
+            <div style={{ ...inp, display: "flex", alignItems: "center", opacity: 0.9 }}>{empresa}</div>
+          </div>
+        )}
+
+        <span style={lbl}>Nueva nota</span>
+        <textarea
+          style={{ ...inp, minHeight: compact ? 90 : 110, resize: "vertical" }}
+          value={nota}
+          onChange={(e) => setNota(e.target.value)}
+          placeholder="Escribí una nota concreta sobre esta empresa..."
+        />
+
+        <button
+          onClick={guardarNota}
+          disabled={guardando || !nota.trim()}
+          style={{ ...btn("#FF6B35"), marginTop: 10, opacity: guardando || !nota.trim() ? 0.6 : 1 }}
+        >
+          {guardando ? "Guardando..." : "💾 Guardar nota"}
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {notas.length === 0 ? (
+          <div style={card({ color: C.muted, fontSize: 13 })}>Todavía no hay notas cargadas para esta empresa.</div>
+        ) : (
+          notas.map((n, i) => (
+            <div key={i} style={card({ marginBottom: 0 })}>
+              <div style={{ fontSize: 12, color: "#9CA3AF" }}>
+                {new Date(n.created_at).toLocaleString("es-AR")}
+              </div>
+              <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.6 }}>{n.contenido}</div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+async function generarAnalisisIA(nombreEmpresa) {
+  return {
+    resumen: `Análisis ejecutivo de ${nombreEmpresa}`,
+    problemas_detectados: [
+      "Falta de seguimiento estructurado",
+      "No hay suficiente trazabilidad operativa"
+    ],
+    oportunidades: [
+      "Mejorar control operativo",
+      "Ordenar prioridades con planes concretos"
+    ],
+    recomendaciones: [
+      "Definir seguimiento semanal",
+      "Actualizar y priorizar plan de acción",
+      "Registrar decisiones relevantes en notas"
+    ]
+  };
+}
+
 function AnalisisIA({ empresa }) {
   const [analisis, setAnalisis] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     cargarAnalisis();
   }, [empresa]);
 
   const cargarAnalisis = async () => {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/analisis_empresas`, {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`
-      }
-    });
-
-    const data = await res.json();
-    const filtrados = data.filter(a => a.empresa === empresa.nombre);
-    setAnalisis(filtrados);
+    const data = await dbGet("analisis_empresas");
+    if (data) {
+      const filtrados = data.filter((a) => a.empresa === empresa.nombre);
+      setAnalisis(filtrados);
+    }
   };
 
   const ejecutarAnalisis = async () => {
+    setLoading(true);
     const resultado = await generarAnalisisIA(empresa.nombre);
 
-    await fetch(`${SUPABASE_URL}/rest/v1/analisis_empresas`, {
-      method: "POST",
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        empresa: empresa.nombre,
-        contenido: resultado
-      })
+    await dbInsert("analisis_empresas", {
+      empresa: empresa.nombre,
+      contenido: resultado
     });
 
-    cargarAnalisis();
+    await cargarAnalisis();
+    setLoading(false);
   };
 
   return (
-    <div>
-      <button onClick={ejecutarAnalisis}>
-        🤖 Analizar empresa con IA
+    <div style={card()}>
+      <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Análisis IA</div>
+      <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>
+        Generá un análisis ejecutivo de la empresa y guardalo con fecha en Supabase.
+      </div>
+
+      <button
+        onClick={ejecutarAnalisis}
+        disabled={loading}
+        style={{ ...btn(empresa.color), opacity: loading ? 0.6 : 1 }}
+      >
+        {loading ? "Analizando..." : "🤖 Analizar empresa con IA"}
       </button>
 
-      <div style={{ marginTop: 20 }}>
-        {analisis.map((a, i) => (
-          <div key={i} style={{ marginBottom: 20 }}>
-            <strong>{new Date(a.created_at).toLocaleString()}</strong>
-
-            <pre style={{ whiteSpace: "pre-wrap" }}>
-              {JSON.stringify(a.contenido, null, 2)}
-            </pre>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+        {analisis.length === 0 ? (
+          <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, fontSize: 13, color: C.muted }}>
+            Todavía no hay análisis guardados para esta empresa.
           </div>
-        ))}
+        ) : (
+          analisis.map((item) => (
+            <div key={item.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+                {new Date(item.created_at).toLocaleString("es-AR")}
+              </div>
+              <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13, lineHeight: 1.6, color: C.text }}>
+                {JSON.stringify(item.contenido, null, 2)}
+              </pre>
+            </div>
+          ))
+        )}
       </div>
-    </div>
-  );
-}
-  };
-
-  const guardarNota = async () => {
-    if (!nota.trim()) return;
-
-    await dbInsert("notas_empresas", {
-      empresa,
-      contenido: nota,
-      tipo: "manual"
-    });
-
-    setNota("");
-    cargarNotas();
-  };
-
-  return (
-    <div>
-      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
-        🧠 Notas por Empresa
-      </div>
-
-      <div style={card({ marginBottom: 20 })}>
-        <span style={lbl}>Empresa</span>
-        <select style={sel} value={empresa} onChange={(e) => setEmpresa(e.target.value)}>
-          {EMPRESAS.map(e => <option key={e.id}>{e.nombre}</option>)}
-        </select>
-
-        <span style={lbl}>Nueva nota</span>
-        <textarea
-          style={{ ...inp, minHeight: 80 }}
-          value={nota}
-          onChange={(e) => setNota(e.target.value)}
-          placeholder="Escribí una nota..."
-        />
-
-        <button onClick={guardarNota} style={{ ...btn("#FF6B35"), marginTop: 10 }}>
-          💾 Guardar nota
-        </button>
-      </div>
-
-      {notas.map((n, i) => (
-        <div key={i} style={card({ marginBottom: 10 })}>
-          <div style={{ fontSize: 12, color: "#9CA3AF" }}>
-            {new Date(n.created_at).toLocaleString()}
-          </div>
-          <div style={{ marginTop: 5 }}>{n.contenido}</div>
-        </div>
-      ))}
     </div>
   );
 }
@@ -599,8 +653,7 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const empresa = EMPRESAS.find((e) => e.id === empresaId);
   const cliente = CLIENTES.find((c) => c.id === empresa?.clienteId);
   const [subtab, setSubtab] = useState("resumen");
-  const [tabInterno, setTabInterno] = useState("resumen");
-  const [dashboardText, setDashboardText] = useState("");
+    const [dashboardText, setDashboardText] = useState("");
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [controlItems, setControlItems] = useState([]);
   const [nuevoControl, setNuevoControl] = useState("");
@@ -797,7 +850,7 @@ Respondé en formato claro y breve.`;
     { id: "notas", label: "Notas" },
     { id: "dashboard", label: "Dashboard" },
     { id: "planes", label: "Planes" },
-    { id: "control", label: "Control" }
+    { id: "control", label: "Control" },
     { id: "analisis", label: "🧠 Análisis IA" },
   ];
 
