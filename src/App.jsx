@@ -37,6 +37,23 @@ async function dbUpdate(tabla, id, data) {
   return res.ok;
 }
 
+function safeJsonParse(text) {
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+}
+
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
@@ -54,15 +71,13 @@ const EMPRESAS = [
   { id: 6, nombre: "DNH", clienteId: "nestor", color: "#4CC9F0", initial: "DN", rol: "Supervisión y auditoría", tipo: "auditoria", sucursales: 1 },
 ];
 
-function NotasEmpresa({ empresaFija = "", compact = false }) {
-  const empresaInicial = empresaFija || EMPRESAS[0].nombre;
-  const [empresa, setEmpresa] = useState(empresaInicial);
+function NotasEmpresa({ empresaFija, compact = false }) {
+  const [empresa, setEmpresa] = useState(empresaFija || EMPRESAS[0].nombre);
   const [nota, setNota] = useState("");
   const [notas, setNotas] = useState([]);
-  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    setEmpresa(empresaFija || EMPRESAS[0].nombre);
+    if (empresaFija) setEmpresa(empresaFija);
   }, [empresaFija]);
 
   useEffect(() => {
@@ -72,167 +87,67 @@ function NotasEmpresa({ empresaFija = "", compact = false }) {
   const cargarNotas = async () => {
     const data = await dbGet("notas_empresas");
     if (data) {
-      const filtradas = data.filter((n) => n.empresa === empresa);
+      const filtradas = data.filter(n => n.empresa === empresa);
       setNotas(filtradas);
     }
   };
 
   const guardarNota = async () => {
     if (!nota.trim()) return;
-    setGuardando(true);
 
     await dbInsert("notas_empresas", {
       empresa,
-      contenido: nota.trim(),
+      contenido: nota,
       tipo: "manual"
     });
 
     setNota("");
-    await cargarNotas();
-    setGuardando(false);
+    cargarNotas();
   };
 
   return (
     <div>
-      {!compact && (
-        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
-          🧠 Notas por Empresa
-        </div>
-      )}
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
+        🧠 Notas por Empresa
+      </div>
 
       <div style={card({ marginBottom: 20 })}>
         {!empresaFija && (
-          <div style={{ marginBottom: 14 }}>
+          <>
             <span style={lbl}>Empresa</span>
             <select style={sel} value={empresa} onChange={(e) => setEmpresa(e.target.value)}>
-              {EMPRESAS.map((e) => <option key={e.id}>{e.nombre}</option>)}
+              {EMPRESAS.map(e => <option key={e.id}>{e.nombre}</option>)}
             </select>
-          </div>
-        )}
-
-        {empresaFija && (
-          <div style={{ marginBottom: 14 }}>
-            <span style={lbl}>Empresa</span>
-            <div style={{ ...inp, display: "flex", alignItems: "center", opacity: 0.9 }}>{empresa}</div>
-          </div>
+          </>
         )}
 
         <span style={lbl}>Nueva nota</span>
         <textarea
-          style={{ ...inp, minHeight: compact ? 90 : 110, resize: "vertical" }}
+          style={{ ...inp, minHeight: 80 }}
           value={nota}
           onChange={(e) => setNota(e.target.value)}
-          placeholder="Escribí una nota concreta sobre esta empresa..."
+          placeholder="Escribí una nota..."
         />
 
-        <button
-          onClick={guardarNota}
-          disabled={guardando || !nota.trim()}
-          style={{ ...btn("#FF6B35"), marginTop: 10, opacity: guardando || !nota.trim() ? 0.6 : 1 }}
-        >
-          {guardando ? "Guardando..." : "💾 Guardar nota"}
+        <button onClick={guardarNota} style={{ ...btn("#FF6B35"), marginTop: 10 }}>
+          💾 Guardar nota
         </button>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {notas.length === 0 ? (
-          <div style={card({ color: C.muted, fontSize: 13 })}>Todavía no hay notas cargadas para esta empresa.</div>
-        ) : (
-          notas.map((n, i) => (
-            <div key={i} style={card({ marginBottom: 0 })}>
-              <div style={{ fontSize: 12, color: "#9CA3AF" }}>
-                {new Date(n.created_at).toLocaleString("es-AR")}
-              </div>
-              <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.6 }}>{n.contenido}</div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-async function generarAnalisisIA(nombreEmpresa) {
-  return {
-    resumen: `Análisis ejecutivo de ${nombreEmpresa}`,
-    problemas_detectados: [
-      "Falta de seguimiento estructurado",
-      "No hay suficiente trazabilidad operativa"
-    ],
-    oportunidades: [
-      "Mejorar control operativo",
-      "Ordenar prioridades con planes concretos"
-    ],
-    recomendaciones: [
-      "Definir seguimiento semanal",
-      "Actualizar y priorizar plan de acción",
-      "Registrar decisiones relevantes en notas"
-    ]
-  };
-}
-
-function AnalisisIA({ empresa }) {
-  const [analisis, setAnalisis] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    cargarAnalisis();
-  }, [empresa]);
-
-  const cargarAnalisis = async () => {
-    const data = await dbGet("analisis_empresas");
-    if (data) {
-      const filtrados = data.filter((a) => a.empresa === empresa.nombre);
-      setAnalisis(filtrados);
-    }
-  };
-
-  const ejecutarAnalisis = async () => {
-    setLoading(true);
-    const resultado = await generarAnalisisIA(empresa.nombre);
-
-    await dbInsert("analisis_empresas", {
-      empresa: empresa.nombre,
-      contenido: resultado
-    });
-
-    await cargarAnalisis();
-    setLoading(false);
-  };
-
-  return (
-    <div style={card()}>
-      <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Análisis IA</div>
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>
-        Generá un análisis ejecutivo de la empresa y guardalo con fecha en Supabase.
-      </div>
-
-      <button
-        onClick={ejecutarAnalisis}
-        disabled={loading}
-        style={{ ...btn(empresa.color), opacity: loading ? 0.6 : 1 }}
-      >
-        {loading ? "Analizando..." : "🤖 Analizar empresa con IA"}
-      </button>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-        {analisis.length === 0 ? (
-          <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, fontSize: 13, color: C.muted }}>
-            Todavía no hay análisis guardados para esta empresa.
+      {notas.map((n, i) => (
+        <div key={i} style={card({ marginBottom: 10 })}>
+          <div style={{ fontSize: 12, color: "#9CA3AF" }}>
+            {new Date(n.created_at).toLocaleString()}
           </div>
-        ) : (
-          analisis.map((item) => (
-            <div key={item.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14 }}>
-              <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
-                {new Date(item.created_at).toLocaleString("es-AR")}
-              </div>
-              <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 13, lineHeight: 1.6, color: C.text }}>
-                {JSON.stringify(item.contenido, null, 2)}
-              </pre>
-            </div>
-          ))
-        )}
-      </div>
+          <div style={{ marginTop: 5 }}>{n.contenido}</div>
+        </div>
+      ))}
+
+      {compact && notas.length === 0 && (
+        <div style={card()}>
+          <div style={{ fontSize: 13, color: C.muted }}>Todavía no hay notas para esta empresa.</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -653,11 +568,11 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const empresa = EMPRESAS.find((e) => e.id === empresaId);
   const cliente = CLIENTES.find((c) => c.id === empresa?.clienteId);
   const [subtab, setSubtab] = useState("resumen");
-    const [dashboardText, setDashboardText] = useState("");
+  const [dashboardText, setDashboardText] = useState("");
   const [dashboardLoading, setDashboardLoading] = useState(false);
-  const [controlItems, setControlItems] = useState([]);
+  const [controlItems, setControlItems] = useState({});
   const [nuevoControl, setNuevoControl] = useState("");
-  const [guardandoControl, setGuardandoControl] = useState(false);
+  const [controlesExtra, setControlesExtra] = useState([]);
   const [accion, setAccion] = useState("");
   const [acciones, setAcciones] = useState([]);
   const [inicio, setInicio] = useState("");
@@ -669,9 +584,20 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [guardandoPlan, setGuardandoPlan] = useState(false);
 
   useEffect(() => {
-    if (empresa) {
-      cargarPlanes();
-      cargarControles();
+    if (empresa) cargarPlanes();
+  }, [empresaId]);
+
+  useEffect(() => {
+    if (!empresa) return;
+    const saved = localStorage.getItem(`controles_extra_${empresa.id}`);
+    if (saved) {
+      try {
+        setControlesExtra(JSON.parse(saved));
+      } catch {
+        setControlesExtra([]);
+      }
+    } else {
+      setControlesExtra([]);
     }
   }, [empresaId]);
 
@@ -681,54 +607,6 @@ function EmpresaDetalle({ empresaId, onBack }) {
       const filtrados = data.filter((p) => p.empresa === empresa.nombre);
       setAcciones(filtrados);
     }
-  };
-
-  const cargarControles = async () => {
-    if (!empresa) return;
-
-    const data = await dbGet("control_empresas");
-    if (!data) return;
-
-    const filtrados = data.filter((item) => item.empresa === empresa.nombre);
-
-    if (filtrados.length === 0) {
-      for (const texto of controlBase) {
-        await dbInsert("control_empresas", {
-          empresa: empresa.nombre,
-          texto,
-          estado: false,
-          tipo: "base"
-        });
-      }
-
-      const recargados = await dbGet("control_empresas");
-      const nuevos = recargados ? recargados.filter((item) => item.empresa === empresa.nombre) : [];
-      setControlItems(nuevos);
-      return;
-    }
-
-    setControlItems(filtrados);
-  };
-
-  const agregarControl = async () => {
-    if (!nuevoControl.trim() || !empresa) return;
-    setGuardandoControl(true);
-
-    await dbInsert("control_empresas", {
-      empresa: empresa.nombre,
-      texto: nuevoControl.trim(),
-      estado: false,
-      tipo: "manual"
-    });
-
-    setNuevoControl("");
-    await cargarControles();
-    setGuardandoControl(false);
-  };
-
-  const toggleControl = async (item) => {
-    await dbUpdate("control_empresas", item.id, { estado: !item.estado });
-    await cargarControles();
   };
 
   const agregarAccion = async () => {
@@ -783,7 +661,9 @@ Generá un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y pr
 
   const generarPlanIA = async () => {
     if (!empresa) return;
+
     setIaLoading(true);
+    setGuardandoPlan(true);
     setIaPlan("");
 
     const prompt = `Empresa: ${empresa.nombre}
@@ -792,41 +672,75 @@ Tipo: ${empresa.tipo}
 Rol actual de Alejandro: ${empresa.rol}
 Contexto adicional: ${iaContexto || "sin contexto adicional"}
 
-Generá un plan de acción profesional y concreto para esta empresa. Necesito:
-1. una acción principal en una sola línea
-2. fecha sugerida de inicio
-3. fecha sugerida de finalización
-4. estado inicial sugerido
-5. breve justificación ejecutiva
+Generá un plan de acción profesional y concreto para esta empresa.
 
-Respondé en formato claro y breve.`;
+Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
+{
+  "titulo": "acción principal en una línea",
+  "inicio": "YYYY-MM-DD",
+  "plazo": "YYYY-MM-DD",
+  "estado": "Pendiente",
+  "justificacion": "breve explicación ejecutiva"
+}`;
 
-    await callAI(
-      "Sos un consultor senior en operaciones y planes de acción para PyMEs. Tus recomendaciones son concretas, ejecutables y profesionales.",
-      prompt,
-      (t) => setIaPlan(t)
-    );
+    try {
+      const raw = await callAI(
+        "Sos un consultor senior en operaciones y planes de acción para PyMEs. Tus recomendaciones son concretas, ejecutables y profesionales. Devolvés únicamente JSON válido.",
+        prompt,
+        (t) => setIaPlan(t)
+      );
 
-    setIaLoading(false);
+      const planData = safeJsonParse(raw);
+
+      if (!planData?.titulo) {
+        setIaPlan("No se pudo estructurar el plan. Volvé a generar.");
+        return;
+      }
+
+      const payload = {
+        empresa: empresa.nombre,
+        titulo: String(planData.titulo || "").trim(),
+        inicio: String(planData.inicio || "").trim() || null,
+        plazo: String(planData.plazo || "").trim() || null,
+        estado: String(planData.estado || "Pendiente").trim() || "Pendiente",
+        tipo: "ia"
+      };
+
+      const saved = await dbInsert("planes_empresas", payload);
+
+      if (!saved) {
+        setIaPlan("La IA generó el plan, pero no se pudo guardar en Supabase.");
+        return;
+      }
+
+      setIaPlan(
+        `✅ Plan generado y guardado automáticamente\n\n` +
+        `Título: ${payload.titulo}\n` +
+        `Inicio: ${payload.inicio || "-"}\n` +
+        `Plazo: ${payload.plazo || "-"}\n` +
+        `Estado: ${payload.estado}\n\n` +
+        `Justificación: ${String(planData.justificacion || "-").trim()}`
+      );
+
+      setInicio("");
+      setPlazo("");
+      setEstadoPlan("Pendiente");
+      await cargarPlanes();
+    } catch (error) {
+      console.error("Error generando plan IA:", error);
+      setIaPlan("Ocurrió un error al generar el plan con IA.");
+    } finally {
+      setIaLoading(false);
+      setGuardandoPlan(false);
+    }
   };
 
-  const guardarPlanIA = async () => {
-    if (!iaPlan.trim() || !empresa) return;
-    setGuardandoPlan(true);
-
-    const titulo = iaPlan.split("\n").find((line) => line.trim())?.replace(/^[-•\d.)\s]+/, "").trim() || `Plan IA para ${empresa.nombre}`;
-
-    await dbInsert("planes_empresas", {
-      empresa: empresa.nombre,
-      titulo,
-      inicio: inicio || null,
-      plazo: plazo || null,
-      estado: estadoPlan || "Pendiente",
-      tipo: "ia"
-    });
-
-    await cargarPlanes();
-    setGuardandoPlan(false);
+  const agregarControlManual = () => {
+    if (!nuevoControl.trim() || !empresa) return;
+    const actualizados = [...controlesExtra, nuevoControl.trim()];
+    setControlesExtra(actualizados);
+    setNuevoControl("");
+    localStorage.setItem(`controles_extra_${empresa.id}`, JSON.stringify(actualizados));
   };
 
   if (!empresa) {
@@ -845,13 +759,14 @@ Respondé en formato claro y breve.`;
     "Próxima reunión definida"
   ];
 
+  const controlesCompletos = [...controlBase, ...controlesExtra];
+
   const subtabs = [
     { id: "resumen", label: "Resumen" },
     { id: "notas", label: "Notas" },
     { id: "dashboard", label: "Dashboard" },
     { id: "planes", label: "Planes" },
-    { id: "control", label: "Control" },
-    { id: "analisis", label: "🧠 Análisis IA" },
+    { id: "control", label: "Control" }
   ];
 
   return (
@@ -1063,7 +978,7 @@ Respondé en formato claro y breve.`;
           <div style={card()}>
             <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Generar plan con IA</div>
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-              Pedile a la IA una recomendación profesional para esta empresa y guardala en el panel.
+              La IA analiza la empresa y guarda automáticamente el plan en Supabase.
             </div>
 
             <span style={lbl}>Contexto adicional</span>
@@ -1074,21 +989,11 @@ Respondé en formato claro y breve.`;
               placeholder="Ej: foco en ventas, reorganización, seguimiento comercial, problemas operativos..."
             />
 
-            <button onClick={generarPlanIA} disabled={iaLoading} style={{ ...btn(empresa.color), width: "100%", opacity: iaLoading ? 0.6 : 1 }}>
-              {iaLoading ? "Generando..." : "✨ Generar plan con IA"}
+            <button onClick={generarPlanIA} disabled={iaLoading || guardandoPlan} style={{ ...btn(empresa.color), width: "100%", opacity: iaLoading || guardandoPlan ? 0.6 : 1 }}>
+              {iaLoading || guardandoPlan ? "Generando y guardando..." : "✨ Generar plan desde análisis"}
             </button>
 
             <AIBox text={iaPlan} loading={iaLoading} />
-
-            {iaPlan && (
-              <button
-                onClick={guardarPlanIA}
-                disabled={guardandoPlan}
-                style={{ ...btn(empresa.color, true), width: "100%", marginTop: 12, opacity: guardandoPlan ? 0.6 : 1 }}
-              >
-                {guardandoPlan ? "Guardando..." : "💾 Guardar recomendación IA"}
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -1106,68 +1011,55 @@ Respondé en formato claro y breve.`;
               placeholder="Agregar nuevo ítem de control..."
               value={nuevoControl}
               onChange={(e) => setNuevoControl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && agregarControl()}
+              onKeyDown={(e) => e.key === "Enter" && agregarControlManual()}
             />
             <button
-              onClick={agregarControl}
-              disabled={guardandoControl || !nuevoControl.trim()}
-              style={{ ...btn(empresa.color), opacity: guardandoControl || !nuevoControl.trim() ? 0.6 : 1 }}
+              onClick={agregarControlManual}
+              disabled={!nuevoControl.trim()}
+              style={{ ...btn(empresa.color), opacity: !nuevoControl.trim() ? 0.6 : 1 }}
             >
-              {guardandoControl ? "Guardando..." : "Agregar"}
+              Agregar
             </button>
           </div>
 
-          {controlItems.length === 0 ? (
-            <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, fontSize: 13, color: C.muted }}>
-              Cargando checklist...
-            </div>
-          ) : (
-            controlItems.map((item) => (
+          {controlesCompletos.map((item, idx) => (
+            <div
+              key={`${idx}-${item}`}
+              onClick={() => setControlItems((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 12px",
+                background: controlItems[idx] ? empresa.color + "11" : C.bg,
+                borderRadius: 8,
+                cursor: "pointer",
+                border: `1px solid ${controlItems[idx] ? empresa.color + "44" : C.border}`,
+                marginBottom: 8
+              }}
+            >
               <div
-                key={item.id}
-                onClick={() => toggleControl(item)}
                 style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 5,
+                  border: `2px solid ${controlItems[idx] ? empresa.color : "#4B5563"}`,
+                  background: controlItems[idx] ? empresa.color : "transparent",
                   display: "flex",
                   alignItems: "center",
-                  gap: 12,
-                  padding: "10px 12px",
-                  background: item.estado ? empresa.color + "11" : C.bg,
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  border: `1px solid ${item.estado ? empresa.color + "44" : C.border}`,
-                  marginBottom: 8
+                  justifyContent: "center",
+                  fontSize: 11,
+                  flexShrink: 0,
+                  color: "white"
                 }}
               >
-                <div
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 5,
-                    border: `2px solid ${item.estado ? empresa.color : "#4B5563"}`,
-                    background: item.estado ? empresa.color : "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 11,
-                    flexShrink: 0,
-                    color: "white"
-                  }}
-                >
-                  {item.estado ? "✓" : ""}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, color: item.estado ? C.text : C.muted }}>{item.texto}</div>
-                  <div style={{ fontSize: 11, color: C.dim, marginTop: 3 }}>
-                    {item.tipo === "manual" ? "Manual" : "Base"}
-                  </div>
-                </div>
+                {controlItems[idx] ? "✓" : ""}
               </div>
-            ))
-          )}
+              <span style={{ fontSize: 13, color: controlItems[idx] ? C.text : C.muted }}>{item}</span>
+            </div>
+          ))}
         </div>
       )}
-      {subtab === "analisis" && <AnalisisIA empresa={empresa} />}
     </div>
   );
 }
