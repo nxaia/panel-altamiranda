@@ -798,6 +798,7 @@ Respondé en formato claro y breve.`;
     { id: "dashboard", label: "Dashboard" },
     { id: "planes", label: "Planes" },
     { id: "control", label: "Control" }
+    { id: "analisis", label: "🧠 Análisis IA" },
   ];
 
   return (
@@ -1113,6 +1114,7 @@ Respondé en formato claro y breve.`;
           )}
         </div>
       )}
+      {subtab === "analisis" && <AnalisisIA empresa={empresa} />}
     </div>
   );
 }
