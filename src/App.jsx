@@ -599,6 +599,7 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const empresa = EMPRESAS.find((e) => e.id === empresaId);
   const cliente = CLIENTES.find((c) => c.id === empresa?.clienteId);
   const [subtab, setSubtab] = useState("resumen");
+  const [tabInterno, setTabInterno] = useState("resumen");
   const [dashboardText, setDashboardText] = useState("");
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [controlItems, setControlItems] = useState([]);
