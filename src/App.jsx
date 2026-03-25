@@ -10,6 +10,21 @@ async function dbGet(tabla) {
   return res.ok ? res.json() : [];
 }
 
+async function dbGetByFilters(tabla, filters = {}, order = "created_at.desc") {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      params.append(key, `eq.${value}`);
+    }
+  });
+  if (order) params.append("order", order);
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?${params.toString()}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  });
+  return res.ok ? res.json() : [];
+}
+
 async function dbInsert(tabla, data) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}`, {
     method: "POST",
@@ -71,7 +86,7 @@ const EMPRESAS = [
   { id: 6, nombre: "DNH", clienteId: "nestor", color: "#4CC9F0", initial: "DN", rol: "Supervisión y auditoría", tipo: "auditoria", sucursales: 1 },
 ];
 
-function NotasEmpresa({ empresaFija, compact = false }) {
+function NotasEmpresa({ empresaFija = null, compact = false }) {
   const [empresa, setEmpresa] = useState(empresaFija || EMPRESAS[0].nombre);
   const [nota, setNota] = useState("");
   const [notas, setNotas] = useState([]);
@@ -85,11 +100,8 @@ function NotasEmpresa({ empresaFija, compact = false }) {
   }, [empresa]);
 
   const cargarNotas = async () => {
-    const data = await dbGet("notas_empresas");
-    if (data) {
-      const filtradas = data.filter(n => n.empresa === empresa);
-      setNotas(filtradas);
-    }
+    const data = await dbGetByFilters("notas_empresas", { empresa });
+    if (data) setNotas(data);
   };
 
   const guardarNota = async () => {
@@ -307,6 +319,19 @@ const badge = (color) => ({
   fontWeight: 600,
   display: "inline-block"
 });
+
+function limpiarJSON(texto) {
+  if (!texto) return "";
+  const clean = texto.trim();
+  if (clean.startsWith("```")) {
+    return clean
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```$/, "")
+      .trim();
+  }
+  return clean;
+}
 
 async function callAI(system, userMsg, onChunk) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -582,9 +607,14 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [iaPlan, setIaPlan] = useState("");
   const [iaLoading, setIaLoading] = useState(false);
   const [guardandoPlan, setGuardandoPlan] = useState(false);
+  const [analisisHistorial, setAnalisisHistorial] = useState([]);
+  const [analisisSeleccionado, setAnalisisSeleccionado] = useState(null);
 
   useEffect(() => {
-    if (empresa) cargarPlanes();
+    if (empresa) {
+      cargarPlanes();
+      cargarAnalisis();
+    }
   }, [empresaId]);
 
   useEffect(() => {
@@ -602,10 +632,21 @@ function EmpresaDetalle({ empresaId, onBack }) {
   }, [empresaId]);
 
   const cargarPlanes = async () => {
-    const data = await dbGet("planes_empresas");
+    const data = await dbGetByFilters("planes_empresas", { empresa: empresa?.nombre });
     if (data && empresa) {
-      const filtrados = data.filter((p) => p.empresa === empresa.nombre);
-      setAcciones(filtrados);
+      setAcciones(data);
+    }
+  };
+
+  const cargarAnalisis = async () => {
+    const data = await dbGetByFilters("analisis_empresas", { empresa: empresa?.nombre });
+    if (data) {
+      setAnalisisHistorial(data);
+      if (data.length > 0) {
+        setAnalisisSeleccionado((prev) => prev ?? data[0].id);
+      } else {
+        setAnalisisSeleccionado(null);
+      }
     }
   };
 
@@ -661,9 +702,7 @@ Generá un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y pr
 
   const generarPlanIA = async () => {
     if (!empresa) return;
-
     setIaLoading(true);
-    setGuardandoPlan(true);
     setIaPlan("");
 
     const prompt = `Empresa: ${empresa.nombre}
@@ -672,66 +711,64 @@ Tipo: ${empresa.tipo}
 Rol actual de Alejandro: ${empresa.rol}
 Contexto adicional: ${iaContexto || "sin contexto adicional"}
 
-Generá un plan de acción profesional y concreto para esta empresa.
-
+Generá un análisis ejecutivo breve y un plan de acción estructurado para esta empresa.
 Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
 {
-  "titulo": "acción principal en una línea",
+  "analisis": "resumen ejecutivo breve del problema u oportunidad detectada",
+  "titulo": "acción principal en una sola línea",
   "inicio": "YYYY-MM-DD",
   "plazo": "YYYY-MM-DD",
   "estado": "Pendiente",
   "justificacion": "breve explicación ejecutiva"
 }`;
 
+    const fullResponse = await callAI(
+      "Sos un consultor senior en operaciones y planes de acción para PyMEs. Tus recomendaciones son concretas, ejecutables y profesionales. Devolvés JSON válido sin markdown ni texto extra.",
+      prompt,
+      (t) => setIaPlan(t)
+    );
+
+    let planData;
+
     try {
-      const raw = await callAI(
-        "Sos un consultor senior en operaciones y planes de acción para PyMEs. Tus recomendaciones son concretas, ejecutables y profesionales. Devolvés únicamente JSON válido.",
-        prompt,
-        (t) => setIaPlan(t)
-      );
-
-      const planData = safeJsonParse(raw);
-
-      if (!planData?.titulo) {
-        setIaPlan("No se pudo estructurar el plan. Volvé a generar.");
-        return;
-      }
-
-      const payload = {
-        empresa: empresa.nombre,
-        titulo: String(planData.titulo || "").trim(),
-        inicio: String(planData.inicio || "").trim() || null,
-        plazo: String(planData.plazo || "").trim() || null,
-        estado: String(planData.estado || "Pendiente").trim() || "Pendiente",
-        tipo: "ia"
-      };
-
-      const saved = await dbInsert("planes_empresas", payload);
-
-      if (!saved) {
-        setIaPlan("La IA generó el plan, pero no se pudo guardar en Supabase.");
-        return;
-      }
-
-      setIaPlan(
-        `✅ Plan generado y guardado automáticamente\n\n` +
-        `Título: ${payload.titulo}\n` +
-        `Inicio: ${payload.inicio || "-"}\n` +
-        `Plazo: ${payload.plazo || "-"}\n` +
-        `Estado: ${payload.estado}\n\n` +
-        `Justificación: ${String(planData.justificacion || "-").trim()}`
-      );
-
-      setInicio("");
-      setPlazo("");
-      setEstadoPlan("Pendiente");
-      await cargarPlanes();
-    } catch (error) {
-      console.error("Error generando plan IA:", error);
-      setIaPlan("Ocurrió un error al generar el plan con IA.");
-    } finally {
+      planData = JSON.parse(limpiarJSON(fullResponse));
+    } catch (e) {
+      console.error("Error parseando IA", e);
+      setIaPlan("Error: la IA devolvió un formato inválido. Volvé a generar el análisis.");
       setIaLoading(false);
+      return;
+    }
+
+    setGuardandoPlan(true);
+
+    try {
+      const analisisInsert = await dbInsert("analisis_empresas", {
+        empresa: empresa.nombre,
+        contenido: planData.analisis || planData.justificacion || "Análisis generado por IA",
+        contexto: iaContexto || null,
+        tipo: "ia"
+      });
+
+      const nuevoAnalisisId = analisisInsert?.[0]?.id || null;
+      if (nuevoAnalisisId) setAnalisisSeleccionado(nuevoAnalisisId);
+
+      await dbInsert("planes_empresas", {
+        empresa: empresa.nombre,
+        titulo: planData.titulo || `Plan IA para ${empresa.nombre}`,
+        inicio: planData.inicio || null,
+        plazo: planData.plazo || null,
+        estado: planData.estado || "Pendiente",
+        tipo: "ia",
+        justificacion: planData.justificacion || null,
+        analisis_id: nuevoAnalisisId
+      });
+
+      setIaPlan(JSON.stringify(planData, null, 2));
+      await cargarPlanes();
+      await cargarAnalisis();
+    } finally {
       setGuardandoPlan(false);
+      setIaLoading(false);
     }
   };
 
@@ -950,9 +987,19 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
                       </label>
                     </div>
 
-                    <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>
                       Inicio: {item.inicio || "-"} | Plazo: {item.plazo || "-"}
                     </div>
+
+                    <div style={{ fontSize: 11, color: C.dim, marginBottom: 8 }}>
+                      Tipo: {item.tipo || "manual"} {item.analisis_id ? `| Análisis #${item.analisis_id}` : ""}
+                    </div>
+
+                    {item.justificacion && (
+                      <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+                        {item.justificacion}
+                      </div>
+                    )}
 
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                       <span style={badge(item.estado === "Finalizado" ? "#2EC4B6" : item.estado === "En curso" ? "#F7B731" : empresa.color)}>
@@ -976,10 +1023,27 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
           </div>
 
           <div style={card()}>
-            <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Generar plan con IA</div>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Generar plan desde análisis</div>
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
               La IA analiza la empresa y guarda automáticamente el plan en Supabase.
             </div>
+
+            {analisisHistorial.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <span style={lbl}>Último análisis relacionado</span>
+                <select
+                  style={{ ...sel, width: "100%" }}
+                  value={analisisSeleccionado || ""}
+                  onChange={(e) => setAnalisisSeleccionado(Number(e.target.value))}
+                >
+                  {analisisHistorial.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      Análisis #{item.id} · {new Date(item.created_at).toLocaleString("es-AR")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <span style={lbl}>Contexto adicional</span>
             <textarea
