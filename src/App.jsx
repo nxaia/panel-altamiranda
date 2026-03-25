@@ -609,11 +609,16 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [guardandoPlan, setGuardandoPlan] = useState(false);
   const [analisisHistorial, setAnalisisHistorial] = useState([]);
   const [analisisSeleccionado, setAnalisisSeleccionado] = useState(null);
+  const [historialPlanes, setHistorialPlanes] = useState([]);
+  const [planLoadingMap, setPlanLoadingMap] = useState({});
+  const [planOutputMap, setPlanOutputMap] = useState({});
+  const [planContextMap, setPlanContextMap] = useState({});
 
   useEffect(() => {
     if (empresa) {
       cargarPlanes();
       cargarAnalisis();
+      cargarHistorialPlanes();
     }
   }, [empresaId]);
 
@@ -647,6 +652,102 @@ function EmpresaDetalle({ empresaId, onBack }) {
       } else {
         setAnalisisSeleccionado(null);
       }
+    }
+  };
+
+  const cargarHistorialPlanes = async () => {
+    const data = await dbGetByFilters("planes_empresas_historial", { empresa: empresa?.nombre });
+    if (data) setHistorialPlanes(data);
+  };
+
+  const getHistorialPlan = (planId) => historialPlanes.filter((item) => item.plan_id === planId);
+
+  const getAnalisisPlan = (plan) => analisisHistorial.find((item) => item.id === plan.analisis_id);
+
+  const getTipoEventoLabel = (tipo) => {
+    if (tipo === "mejora_ia") return "Mejora IA";
+    if (tipo === "siguiente_paso") return "Siguiente paso";
+    if (tipo === "reformulacion") return "Reformulación";
+    if (tipo === "seguimiento_ia") return "Seguimiento IA";
+    return tipo || "IA";
+  };
+
+  const ejecutarAccionIAPlan = async (plan, tipoEvento) => {
+    if (!empresa || !plan) return;
+
+    setPlanLoadingMap((prev) => ({ ...prev, [plan.id]: true }));
+    setPlanOutputMap((prev) => ({ ...prev, [plan.id]: "" }));
+
+    const analisisVinculado = getAnalisisPlan(plan);
+    const historialPrevio = getHistorialPlan(plan.id)
+      .slice(0, 5)
+      .map((item) => `[${getTipoEventoLabel(item.tipo_evento)}] ${item.contenido}`)
+      .join("\n\n");
+
+    const contextoUsuario = planContextMap[plan.id]?.trim() || "sin contexto adicional";
+
+    const instrucciones = {
+      mejora_ia: "Mejorá este plan. Hacelo más concreto, ejecutivo y accionable. Respondé con una versión mejorada y una breve justificación.",
+      siguiente_paso: "Indicá el siguiente paso operativo más importante para esta semana. Respondé breve, claro y accionable.",
+      reformulacion: "Reformulá el plan completo para hacerlo más fuerte y mejor alineado al negocio. Respondé con una nueva versión del plan y criterio ejecutivo.",
+      seguimiento_ia: "Generá un seguimiento operativo del plan. Indicá estado sugerido, riesgo actual, siguiente acción y recomendación breve."
+    };
+
+    const prompt = `Empresa: ${empresa.nombre}
+Cliente: ${cliente?.nombre || "-"}
+Tipo empresa: ${empresa.tipo}
+Rol actual de Alejandro: ${empresa.rol}
+
+Plan actual:
+Título: ${plan.titulo}
+Estado: ${plan.estado || "Pendiente"}
+Inicio: ${plan.inicio || "-"}
+Plazo: ${plan.plazo || "-"}
+Justificación: ${plan.justificacion || "-"}
+
+Análisis vinculado:
+${analisisVinculado?.contenido || "Sin análisis vinculado"}
+
+Contexto nuevo del usuario:
+${contextoUsuario}
+
+Historial previo del plan:
+${historialPrevio || "Sin historial"}
+
+Tarea:
+${instrucciones[tipoEvento]}`;
+
+    try {
+      const respuesta = await callAI(
+        "Sos un consultor senior de operaciones. Trabajás sobre planes reales, con criterio ejecutivo, foco práctico y propuestas accionables. Respondés en español neutro, sin relleno.",
+        prompt,
+        (t) => setPlanOutputMap((prev) => ({ ...prev, [plan.id]: t }))
+      );
+
+      await dbInsert("planes_empresas_historial", {
+        plan_id: plan.id,
+        empresa: empresa.nombre,
+        tipo_evento: tipoEvento,
+        contenido: respuesta,
+        contexto: contextoUsuario || null
+      });
+
+      if (tipoEvento === "seguimiento_ia") {
+        const texto = respuesta.toLowerCase();
+        let nuevoEstado = plan.estado || "Pendiente";
+        if (texto.includes("finalizado")) nuevoEstado = "Finalizado";
+        else if (texto.includes("en curso")) nuevoEstado = "En curso";
+        else if (texto.includes("pendiente")) nuevoEstado = "Pendiente";
+
+        if (nuevoEstado !== plan.estado) {
+          await dbUpdate("planes_empresas", plan.id, { estado: nuevoEstado });
+          await cargarPlanes();
+        }
+      }
+
+      await cargarHistorialPlanes();
+    } finally {
+      setPlanLoadingMap((prev) => ({ ...prev, [plan.id]: false }));
     }
   };
 
@@ -1001,7 +1102,7 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
                       </div>
                     )}
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
                       <span style={badge(item.estado === "Finalizado" ? "#2EC4B6" : item.estado === "En curso" ? "#F7B731" : empresa.color)}>
                         {item.estado}
                       </span>
@@ -1016,6 +1117,66 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
                         <option>Finalizado</option>
                       </select>
                     </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 10 }}>
+                      <button
+                        onClick={() => ejecutarAccionIAPlan(item, "mejora_ia")}
+                        disabled={!!planLoadingMap[item.id]}
+                        style={{ ...btn(empresa.color, true), opacity: planLoadingMap[item.id] ? 0.6 : 1 }}
+                      >
+                        ✨ Mejorar con IA
+                      </button>
+                      <button
+                        onClick={() => ejecutarAccionIAPlan(item, "siguiente_paso")}
+                        disabled={!!planLoadingMap[item.id]}
+                        style={{ ...btn(empresa.color, true), opacity: planLoadingMap[item.id] ? 0.6 : 1 }}
+                      >
+                        ➜ Siguiente paso
+                      </button>
+                      <button
+                        onClick={() => ejecutarAccionIAPlan(item, "reformulacion")}
+                        disabled={!!planLoadingMap[item.id]}
+                        style={{ ...btn(empresa.color, true), opacity: planLoadingMap[item.id] ? 0.6 : 1 }}
+                      >
+                        ♻ Reformular
+                      </button>
+                      <button
+                        onClick={() => ejecutarAccionIAPlan(item, "seguimiento_ia")}
+                        disabled={!!planLoadingMap[item.id]}
+                        style={{ ...btn(empresa.color, true), opacity: planLoadingMap[item.id] ? 0.6 : 1 }}
+                      >
+                        📌 Seguimiento IA
+                      </button>
+                    </div>
+
+                    <textarea
+                      style={{ ...inp, minHeight: 70, resize: "vertical", marginBottom: 10 }}
+                      placeholder="Contexto puntual para este plan. Ej: quedó frenado, hay urgencia comercial, cambió prioridad..."
+                      value={planContextMap[item.id] || ""}
+                      onChange={(e) => setPlanContextMap((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                    />
+
+                    <AIBox text={planOutputMap[item.id] || ""} loading={!!planLoadingMap[item.id]} />
+
+                    {getHistorialPlan(item.id).length > 0 && (
+                      <details style={{ marginTop: 10 }}>
+                        <summary style={{ fontSize: 12, color: empresa.color, cursor: "pointer", fontWeight: 700 }}>
+                          Ver historial IA ({getHistorialPlan(item.id).length})
+                        </summary>
+                        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                          {getHistorialPlan(item.id).map((hist) => (
+                            <div key={hist.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 10 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+                                <span style={badge(empresa.color)}>{getTipoEventoLabel(hist.tipo_evento)}</span>
+                                <span style={{ fontSize: 11, color: C.dim }}>{new Date(hist.created_at).toLocaleString("es-AR")}</span>
+                              </div>
+                              {hist.contexto && <div style={{ fontSize: 11, color: C.dim, marginBottom: 6 }}>Contexto: {hist.contexto}</div>}
+                              <div style={{ fontSize: 12, color: C.muted, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{hist.contenido}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                   </div>
                 ))
               )}
