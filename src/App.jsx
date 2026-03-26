@@ -2419,72 +2419,25 @@ export default function App() {
   useEffect(() => {
     document.title = "Altamiranda Gestión";
 
-    const ensureMeta = (selector, attrs, content) => {
-      let el = document.head.querySelector(selector);
-      if (!el) {
-        el = document.createElement("meta");
-        Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
-        document.head.appendChild(el);
-      }
-      el.setAttribute("content", content);
-      return el;
-    };
+    document.documentElement.style.margin = "0";
+    document.documentElement.style.padding = "0";
+    document.documentElement.style.width = "100%";
+    document.documentElement.style.background = C.bg;
 
-    const ensureLink = (selector, rel, href, extra = {}) => {
-      let el = document.head.querySelector(selector);
-      if (!el) {
-        el = document.createElement("link");
-        el.setAttribute("rel", rel);
-        document.head.appendChild(el);
-      }
-      el.setAttribute("href", href);
-      Object.entries(extra).forEach(([k, v]) => el.setAttribute(k, v));
-      return el;
-    };
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.width = "100%";
+    document.body.style.minHeight = "100vh";
+    document.body.style.background = C.bg;
+    document.body.style.overflowX = "hidden";
 
-    ensureMeta('meta[name="theme-color"]', { name: "theme-color" }, "#0F1117");
-    ensureMeta('meta[name="apple-mobile-web-app-capable"]', { name: "apple-mobile-web-app-capable" }, "yes");
-    ensureMeta('meta[name="apple-mobile-web-app-status-bar-style"]', { name: "apple-mobile-web-app-status-bar-style" }, "black-translucent");
-    ensureMeta('meta[name="apple-mobile-web-app-title"]', { name: "apple-mobile-web-app-title" }, "Altamiranda");
-
-    ensureLink('link[rel="icon"]', "icon", logoSrc, { type: "image/png" });
-    ensureLink('link[rel="apple-touch-icon"]', "apple-touch-icon", logoSrc);
-
-    const manifest = {
-      name: "Altamiranda Gestión",
-      short_name: "Altamiranda",
-      description: "Panel de gestión inteligente con IA",
-      start_url: "/",
-      scope: "/",
-      display: "standalone",
-      background_color: "#0F1117",
-      theme_color: "#0F1117",
-      icons: [
-        {
-          src: logoSrc,
-          sizes: "192x192",
-          type: "image/png",
-          purpose: "any maskable"
-        },
-        {
-          src: logoSrc,
-          sizes: "512x512",
-          type: "image/png",
-          purpose: "any maskable"
-        }
-      ]
-    };
-
-    const manifestBlob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
-    const manifestUrl = URL.createObjectURL(manifestBlob);
-    const manifestLink = ensureLink('link[rel="manifest"]', "manifest", manifestUrl);
-
-    return () => {
-      URL.revokeObjectURL(manifestUrl);
-      if (manifestLink?.parentNode) {
-        manifestLink.parentNode.removeChild(manifestLink);
-      }
-    };
+    const root = document.getElementById("root");
+    if (root) {
+      root.style.margin = "0";
+      root.style.padding = "0";
+      root.style.minHeight = "100vh";
+      root.style.background = C.bg;
+    }
   }, []);
 
   const openEmpresa = (id) => {
@@ -2504,7 +2457,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ fontFamily: "'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh", color: C.text }}>
+    <div style={{ fontFamily: "'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh", color: C.text, margin: 0, padding: 0, width: "100%" }}>
       <div
         style={{
           background: C.card,
