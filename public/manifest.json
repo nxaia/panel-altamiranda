@@ -1,8 +1,8 @@
 {
-  "id": "/?source=pwa-altamiranda-v2",
+  "id": "/?source=pwa-altamiranda-v3",
   "name": "Altamiranda Gestión",
   "short_name": "Altamiranda",
-  "start_url": "/?source=pwa-altamiranda-v2",
+  "start_url": "/?source=pwa-altamiranda-v3",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
