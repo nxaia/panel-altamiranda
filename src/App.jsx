@@ -322,18 +322,22 @@ const PLAN_ITEMS = [
 ];
 
 const C = {
-  bg: "#0B0F17",
-  bgSoft: "#111826",
-  card: "#151D2B",
-  cardAlt: "#1C2636",
-  border: "#253247",
-  text: "#E5E7EB",
-  muted: "#94A3B8",
-  dim: "#64748B",
+  bg: "#F7F9FC",
+  bgSoft: "#FFFFFF",
+  card: "#FFFFFF",
+  cardAlt: "#F1F5F9",
+  border: "#E2E8F0",
+  text: "#0F172A",
+  muted: "#64748B",
+  dim: "#94A3B8",
+
   brand: "#FF6A1A",
   brandDeep: "#D9550B",
   brandSoft: "#FFB182",
-  accent: "#F59E0B",
+
+  accent: "#F97316",
+  accentSoft: "#FDBA74",
+
   success: "#22C55E",
   warning: "#F59E0B",
   danger: "#EF4444",
