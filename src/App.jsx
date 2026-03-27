@@ -73,17 +73,17 @@ const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
 const CLIENTES = [
-  { id: "fabian", nombre: "Fabián Salguero", color: "#FF6B35", initial: "FS" },
-  { id: "nestor", nombre: "Néstor Hidalgo", color: "#2EC4B6", initial: "NH" },
+  { id: "fabian", nombre: "Fabián Salguero", color: "#FF6A1A", initial: "FS" },
+  { id: "nestor", nombre: "Néstor Hidalgo", color: "#8F98A8", initial: "NH" },
 ];
 
 const EMPRESAS = [
-  { id: 1, nombre: "TATITO", clienteId: "fabian", color: "#FF6B35", initial: "TA", rol: "Administración general", tipo: "admin", sucursales: 5 },
-  { id: 2, nombre: "SOL SRL", clienteId: "fabian", color: "#F7B731", initial: "SL", rol: "Auditoría de franquicia", tipo: "auditoria", sucursales: 1 },
-  { id: 3, nombre: "DEPAL SRL", clienteId: "fabian", color: "#E84393", initial: "DP", rol: "Supervisión + Auditoría + Gerentes", tipo: "supervision", sucursales: 1 },
-  { id: 4, nombre: "CELOG", clienteId: "fabian", color: "#9B5DE5", initial: "CL", rol: "Capacitación vendedora mayorista", tipo: "capacitacion", sucursales: 1 },
-  { id: 5, nombre: "MANAOS", clienteId: "nestor", color: "#2EC4B6", initial: "MN", rol: "Aumentar ventas", tipo: "ventas", sucursales: 1 },
-  { id: 6, nombre: "DNH", clienteId: "nestor", color: "#4CC9F0", initial: "DN", rol: "Supervisión y auditoría", tipo: "auditoria", sucursales: 1 },
+  { id: 1, nombre: "TATITO", clienteId: "fabian", color: "#FF6A1A", initial: "TA", rol: "Administración general", tipo: "admin", sucursales: 5 },
+  { id: 2, nombre: "SOL SRL", clienteId: "fabian", color: "#D49A33", initial: "SL", rol: "Auditoría de franquicia", tipo: "auditoria", sucursales: 1 },
+  { id: 3, nombre: "DEPAL SRL", clienteId: "fabian", color: "#C97842", initial: "DP", rol: "Supervisión + Auditoría + Gerentes", tipo: "supervision", sucursales: 1 },
+  { id: 4, nombre: "CELOG", clienteId: "fabian", color: "#A48762", initial: "CL", rol: "Capacitación vendedora mayorista", tipo: "capacitacion", sucursales: 1 },
+  { id: 5, nombre: "MANAOS", clienteId: "nestor", color: "#7F8B9D", initial: "MN", rol: "Aumentar ventas", tipo: "ventas", sucursales: 1 },
+  { id: 6, nombre: "DNH", clienteId: "nestor", color: "#6D7787", initial: "DN", rol: "Supervisión y auditoría", tipo: "auditoria", sucursales: 1 },
 ];
 
 function NotasEmpresa({ empresaFija = null, compact = false }) {
@@ -141,14 +141,14 @@ function NotasEmpresa({ empresaFija = null, compact = false }) {
           placeholder="Escribí una nota..."
         />
 
-        <button onClick={guardarNota} style={{ ...btn("#FF6B35"), marginTop: 10 }}>
+        <button onClick={guardarNota} style={{ ...btn(C.brand), marginTop: 10 }}>
           💾 Guardar nota
         </button>
       </div>
 
       {notas.map((n, i) => (
         <div key={i} style={card({ marginBottom: 10 })}>
-          <div style={{ fontSize: 12, color: "#9CA3AF" }}>
+          <div style={{ fontSize: 12, color: C.muted }}>
             {new Date(n.created_at).toLocaleString()}
           </div>
           <div style={{ marginTop: 5 }}>{n.contenido}</div>
@@ -253,12 +253,12 @@ const PLAN_ITEMS = [
 ];
 
 const C = {
-  bg: "#0F1117",
-  card: "#1A1D2E",
-  border: "#2A2D3E",
+  bg: C.bg,
+  card: C.card,
+  border: C.cardAlt,
   text: "#E8E8F0",
-  muted: "#9CA3AF",
-  dim: "#6B7280"
+  muted: C.muted,
+  dim: C.dim
 };
 
 const card = (extra) => ({
@@ -281,7 +281,7 @@ const btn = (color, ghost) => ({
 });
 
 const inp = {
-  background: C.bg,
+  background: C.bgSoft,
   border: `1px solid ${C.border}`,
   borderRadius: 8,
   padding: "9px 12px",
@@ -293,7 +293,7 @@ const inp = {
 };
 
 const sel = {
-  background: C.bg,
+  background: C.bgSoft,
   border: `1px solid ${C.border}`,
   borderRadius: 8,
   padding: "9px 12px",
@@ -376,7 +376,7 @@ function AIBox({ text, loading }) {
     <div
       style={{
         marginTop: 14,
-        background: C.bg,
+        background: C.bgSoft,
         borderRadius: 10,
         padding: 14,
         border: `1px solid ${C.border}`,
@@ -416,7 +416,7 @@ function Reloj() {
         gap: 16
       }}
     >
-      <div style={{ fontSize: 32, fontWeight: 800, color: "#FF6B35", letterSpacing: -1 }}>{hora}</div>
+      <div style={{ fontSize: 32, fontWeight: 800, color: C.brand, letterSpacing: -1 }}>{hora}</div>
       <div style={{ fontSize: 14, color: C.muted }}>{fecha}</div>
     </div>
   );
@@ -427,7 +427,7 @@ function AlertaTATITO() {
   const hoy = new Date();
   const dias = Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24));
   const meses = Math.floor(dias / 30);
-  const color = dias <= 90 ? "#FF6B35" : dias <= 180 ? "#F7B731" : "#2EC4B6";
+  const color = dias <= 90 ? C.brand : dias <= 180 ? C.warning : C.success;
 
   return (
     <div
@@ -486,12 +486,12 @@ function Dashboard({ setTab, onOpenEmpresa }) {
   };
 
   const modulos = [
-    { tab: "diagnostico", icon: "📋", title: "Diagnóstico Franquicias", desc: "Plan de acción SOL basado en encuesta real", color: "#F7B731" },
-    { tab: "auditoria", icon: "🔍", title: "Auditoría", desc: "Checklist presencial SOL, DEPAL, DNH", color: "#E84393" },
-    { tab: "supervision", icon: "👁️", title: "Supervisión", desc: "Operativa DEPAL y DNH", color: "#2EC4B6" },
-    { tab: "roxana", icon: "📞", title: "Roxana / CELOG", desc: "KPIs y seguimiento telemarketer", color: "#9B5DE5" },
-    { tab: "manaos", icon: "🚀", title: "Estrategia MANAOS", desc: "Plan de ventas con IA", color: "#4CC9F0" },
-    { tab: "planes", icon: "🎯", title: "Planes IA", desc: "Generá planes de operación", color: "#FF6B35" },
+    { tab: "diagnostico", icon: "📋", title: "Diagnóstico Franquicias", desc: "Plan de acción SOL basado en encuesta real", color: C.warning },
+    { tab: "auditoria", icon: "🔍", title: "Auditoría", desc: "Checklist presencial SOL, DEPAL, DNH", color: C.danger },
+    { tab: "supervision", icon: "👁️", title: "Supervisión", desc: "Operativa DEPAL y DNH", color: C.success },
+    { tab: "roxana", icon: "📞", title: "Roxana / CELOG", desc: "KPIs y seguimiento telemarketer", color: C.accent },
+    { tab: "manaos", icon: "🚀", title: "Estrategia MANAOS", desc: "Plan de ventas con IA", color: C.info },
+    { tab: "planes", icon: "🎯", title: "Planes IA", desc: "Generá planes de operación", color: C.brand },
   ];
 
   const pendientes = planes.filter((p) => p.estado === "Pendiente").length;
@@ -566,10 +566,10 @@ function Dashboard({ setTab, onOpenEmpresa }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
         {[
-          { label: "Planes totales", value: String(planes.length), icon: "🎯", color: "#FF6B35" },
-          { label: "Pendientes", value: String(pendientes), icon: "⏳", color: "#F7B731" },
-          { label: "En curso", value: String(enCurso), icon: "⚙️", color: "#4CC9F0" },
-          { label: "Finalizados", value: String(finalizados), icon: "✅", color: "#2EC4B6" },
+          { label: "Planes totales", value: String(planes.length), icon: "🎯", color: C.brand },
+          { label: "Pendientes", value: String(pendientes), icon: "⏳", color: C.warning },
+          { label: "En curso", value: String(enCurso), icon: "⚙️", color: C.info },
+          { label: "Finalizados", value: String(finalizados), icon: "✅", color: C.success },
         ].map((s, i) => (
           <div key={i} style={card()}>
             <div style={{ fontSize: 26, marginBottom: 6 }}>{s.icon}</div>
@@ -581,13 +581,13 @@ function Dashboard({ setTab, onOpenEmpresa }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 14, marginBottom: 24 }}>
         <div style={card()}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "#FF6B35", marginBottom: 12 }}>⚠️ Empresas que requieren atención</div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: C.brand, marginBottom: 12 }}>⚠️ Empresas que requieren atención</div>
           {empresasAtencion.length === 0 ? (
             <div style={{ fontSize: 13, color: C.muted }}>No hay alertas críticas ahora mismo.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {empresasAtencion.map((empresa) => (
-                <div key={empresa.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
+                <div key={empresa.id} style={{ background: C.bgSoft, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", marginBottom: 6 }}>
                     <div style={{ fontWeight: 700 }}>{empresa.nombre}</div>
                     <button onClick={() => onOpenEmpresa && onOpenEmpresa(empresa.id)} style={btn(empresa.color, true)}>Abrir</button>
@@ -602,15 +602,15 @@ function Dashboard({ setTab, onOpenEmpresa }) {
         </div>
 
         <div style={card()}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "#9B5DE5", marginBottom: 12 }}>🕘 Actividad reciente</div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: C.accent, marginBottom: 12 }}>🕘 Actividad reciente</div>
           {actividadReciente.length === 0 ? (
             <div style={{ fontSize: 13, color: C.muted }}>Todavía no hay actividad suficiente para mostrar.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {actividadReciente.map((item) => (
-                <div key={item.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 10 }}>
+                <div key={item.id} style={{ background: C.bgSoft, border: `1px solid ${C.border}`, borderRadius: 10, padding: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
-                    <span style={badge(item.tipo === "Plan" ? "#FF6B35" : item.tipo === "Análisis IA" ? "#9B5DE5" : item.tipo === "Nota" ? "#4CC9F0" : "#2EC4B6")}>{item.tipo}</span>
+                    <span style={badge(item.tipo === "Plan" ? C.brand : item.tipo === "Análisis IA" ? C.accent : item.tipo === "Nota" ? C.info : C.success)}>{item.tipo}</span>
                     <span style={{ fontSize: 11, color: C.dim }}>{new Date(item.fecha).toLocaleString("es-AR")}</span>
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{item.empresa}</div>
@@ -624,9 +624,9 @@ function Dashboard({ setTab, onOpenEmpresa }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
         {[
-          { label: "Análisis IA", value: String(analisis.length), icon: "🧠", color: "#9B5DE5" },
-          { label: "Movimientos IA", value: String(historial.length), icon: "📌", color: "#2EC4B6" },
-          { label: "Notas registradas", value: String(notas.length), icon: "📝", color: "#4CC9F0" },
+          { label: "Análisis IA", value: String(analisis.length), icon: "🧠", color: C.accent },
+          { label: "Movimientos IA", value: String(historial.length), icon: "📌", color: C.success },
+          { label: "Notas registradas", value: String(notas.length), icon: "📝", color: C.info },
         ].map((s, i) => (
           <div key={i} style={card()}>
             <div style={{ fontSize: 24, marginBottom: 6 }}>{s.icon}</div>
@@ -1031,7 +1031,7 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
     return (
       <div style={card()}>
         <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Empresa no encontrada</div>
-        <button onClick={onBack} style={btn("#FF6B35")}>← Volver</button>
+        <button onClick={onBack} style={btn(C.brand)}>← Volver</button>
       </div>
     );
   }
@@ -1087,17 +1087,17 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(90px, 1fr))", gap: 10, flex: 1, minWidth: 280 }}>
-            <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
+            <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12 }}>
               <div style={{ fontSize: 11, color: C.muted }}>Sucursales</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: empresa.color }}>{empresa.sucursales}</div>
             </div>
-            <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
+            <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12 }}>
               <div style={{ fontSize: 11, color: C.muted }}>Planes activos</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: empresa.color }}>{acciones.length}</div>
             </div>
-            <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
+            <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12 }}>
               <div style={{ fontSize: 11, color: C.muted }}>Estado</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#2EC4B6" }}>Activo</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: C.success }}>Activo</div>
             </div>
           </div>
         </div>
@@ -1109,7 +1109,7 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
             key={item.id}
             onClick={() => setSubtab(item.id)}
             style={{
-              ...btn(subtab === item.id ? empresa.color : "#2A2D3E"),
+              ...btn(subtab === item.id ? empresa.color : C.cardAlt),
               fontSize: 12,
               color: subtab === item.id ? "white" : C.text,
               borderColor: subtab === item.id ? empresa.color : C.border
@@ -1129,21 +1129,21 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
               preparar dashboards mensuales, definir planes de acción, revisar actividad IA y detectar riesgos sin dispersar la información.
             </div>
             <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-              <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
+              <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12 }}>
                 <div style={{ fontSize: 11, color: C.muted }}>Cliente</div>
                 <div style={{ fontWeight: 700, marginTop: 4 }}>{cliente?.nombre || "-"}</div>
               </div>
-              <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
+              <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12 }}>
                 <div style={{ fontSize: 11, color: C.muted }}>Enfoque</div>
                 <div style={{ fontWeight: 700, marginTop: 4 }}>{empresa.tipo}</div>
               </div>
-              <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
+              <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12 }}>
                 <div style={{ fontSize: 11, color: C.muted }}>Próxima prioridad</div>
                 <div style={{ fontWeight: 700, marginTop: 4 }}>{acciones.find((x) => x.estado !== "Finalizado")?.titulo || "Sin pendientes"}</div>
               </div>
-              <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
+              <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12 }}>
                 <div style={{ fontSize: 11, color: C.muted }}>Semáforo</div>
-                <div style={{ fontWeight: 700, marginTop: 4, color: acciones.some((x) => x.plazo && x.estado !== "Finalizado" && new Date(x.plazo) < new Date()) ? "#FF6B35" : acciones.filter((x) => x.estado === "Pendiente").length > 0 ? "#F7B731" : "#2EC4B6" }}>
+                <div style={{ fontWeight: 700, marginTop: 4, color: acciones.some((x) => x.plazo && x.estado !== "Finalizado" && new Date(x.plazo) < new Date()) ? C.brand : acciones.filter((x) => x.estado === "Pendiente").length > 0 ? C.warning : C.success }}>
                   {acciones.some((x) => x.plazo && x.estado !== "Finalizado" && new Date(x.plazo) < new Date()) ? "Crítico" : acciones.filter((x) => x.estado === "Pendiente").length > 0 ? "Atención" : "Ordenado"}
                 </div>
               </div>
@@ -1173,10 +1173,10 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 14 }}>
             {[
-              { label: "Pendientes", value: acciones.filter((x) => x.estado === "Pendiente").length, color: "#F7B731" },
-              { label: "En curso", value: acciones.filter((x) => x.estado === "En curso").length, color: "#4CC9F0" },
-              { label: "Finalizados", value: acciones.filter((x) => x.estado === "Finalizado").length, color: "#2EC4B6" },
-              { label: "Análisis IA", value: analisisHistorial.length, color: "#9B5DE5" },
+              { label: "Pendientes", value: acciones.filter((x) => x.estado === "Pendiente").length, color: C.warning },
+              { label: "En curso", value: acciones.filter((x) => x.estado === "En curso").length, color: C.info },
+              { label: "Finalizados", value: acciones.filter((x) => x.estado === "Finalizado").length, color: C.success },
+              { label: "Análisis IA", value: analisisHistorial.length, color: C.accent },
             ].map((item, idx) => (
               <div key={idx} style={card()}>
                 <div style={{ fontSize: 24, fontWeight: 800, color: item.color }}>{item.value}</div>
@@ -1189,13 +1189,13 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
             <div style={card()}>
               <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Estado operativo</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ background: C.bg, borderRadius: 10, padding: 12, fontSize: 13, color: C.text }}>
+                <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12, fontSize: 13, color: C.text }}>
                   {acciones.some((x) => x.plazo && x.estado !== "Finalizado" && new Date(x.plazo) < new Date()) ? "⚠️ Hay planes vencidos que requieren atención." : "✅ No hay planes vencidos ahora mismo."}
                 </div>
-                <div style={{ background: C.bg, borderRadius: 10, padding: 12, fontSize: 13, color: C.text }}>
+                <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12, fontSize: 13, color: C.text }}>
                   {historialPlanes.length === 0 ? "⚠️ Todavía no hay movimientos IA sobre esta empresa." : `✅ Ya hay ${historialPlanes.length} movimientos IA registrados.`}
                 </div>
-                <div style={{ background: C.bg, borderRadius: 10, padding: 12, fontSize: 13, color: C.text }}>
+                <div style={{ background: C.bgSoft, borderRadius: 12, padding: 12, fontSize: 13, color: C.text }}>
                   {analisisHistorial.length === 0 ? "⚠️ No hay análisis cargados todavía." : `🧠 Último análisis: ${new Date(analisisHistorial[0].created_at).toLocaleString("es-AR")}`}
                 </div>
               </div>
@@ -1212,7 +1212,7 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
                     .sort((a,b) => new Date(b.fecha) - new Date(a.fecha))
                     .slice(0,5)
                     .map((item) => (
-                    <div key={item.id} style={{ background: C.bg, borderRadius: 10, padding: 10, border: `1px solid ${C.border}` }}>
+                    <div key={item.id} style={{ background: C.bgSoft, borderRadius: 10, padding: 10, border: `1px solid ${C.border}` }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
                         <span style={badge(empresa.color)}>{item.tipo}</span>
                         <span style={{ fontSize: 11, color: C.dim }}>{new Date(item.fecha).toLocaleString("es-AR")}</span>
@@ -1280,12 +1280,12 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {acciones.length === 0 ? (
-                <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, color: C.muted, fontSize: 13 }}>
+                <div style={{ background: C.bgSoft, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, color: C.muted, fontSize: 13 }}>
                   Todavía no hay planes guardados para esta empresa.
                 </div>
               ) : (
                 acciones.map((item) => (
-                  <div key={item.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
+                  <div key={item.id} style={{ background: C.bgSoft, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 6 }}>
                       <div style={{ fontWeight: 700 }}>{item.titulo}</div>
                       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.muted, cursor: "pointer" }}>
@@ -1313,7 +1313,7 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
                     )}
 
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-                      <span style={badge(item.estado === "Finalizado" ? "#2EC4B6" : item.estado === "En curso" ? "#F7B731" : empresa.color)}>
+                      <span style={badge(item.estado === "Finalizado" ? C.success : item.estado === "En curso" ? C.warning : empresa.color)}>
                         {item.estado}
                       </span>
 
@@ -1518,7 +1518,7 @@ function Diagnostico() {
     (Object.values(d.calificaciones).reduce((a, b) => a + b, 0) / Object.values(d.calificaciones).length) * 10
   ) / 10;
 
-  const color = promedio >= 7 ? "#2EC4B6" : promedio >= 5 ? "#F7B731" : "#FF6B35";
+  const color = promedio >= 7 ? C.success : promedio >= 5 ? C.warning : C.brand;
 
   const toggleItem = async (i) => {
     const nuevo = { ...seguimiento, [i]: !seguimiento[i] };
@@ -1578,8 +1578,8 @@ Generá plan con: diagnóstico ejecutivo, top 3 prioridades inmediatas, acciones
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
           {Object.entries(d.calificaciones).slice(0, 9).map(([k, v]) => (
-            <div key={k} style={{ background: C.bg, borderRadius: 8, padding: "8px 10px" }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: v >= 7 ? "#2EC4B6" : v >= 5 ? "#F7B731" : "#FF6B35" }}>
+            <div key={k} style={{ background: C.bgSoft, borderRadius: 8, padding: "8px 10px" }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: v >= 7 ? C.success : v >= 5 ? C.warning : C.brand }}>
                 {v}
               </div>
               <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{k}</div>
@@ -1589,21 +1589,21 @@ Generá plan con: diagnóstico ejecutivo, top 3 prioridades inmediatas, acciones
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
           <div style={{ background: "#2EC4B611", borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#2EC4B6", marginBottom: 8 }}>✅ FORTALEZAS</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.success, marginBottom: 8 }}>✅ FORTALEZAS</div>
             {d.fortalezas.map((f, i) => (
               <div key={i} style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>· {f}</div>
             ))}
           </div>
 
           <div style={{ background: "#FF6B3511", borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B35", marginBottom: 8 }}>⚠️ PROBLEMAS</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.brand, marginBottom: 8 }}>⚠️ PROBLEMAS</div>
             {d.problemas.slice(0, 4).map((p, i) => (
               <div key={i} style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>· {p}</div>
             ))}
           </div>
         </div>
 
-        <button onClick={genPlan} disabled={aiLoad} style={{ ...btn("#F7B731"), opacity: aiLoad ? 0.5 : 1, width: "100%" }}>
+        <button onClick={genPlan} disabled={aiLoad} style={{ ...btn(C.warning), opacity: aiLoad ? 0.5 : 1, width: "100%" }}>
           {aiLoad ? "Generando plan..." : "✨ Generar Plan de Acción con IA"}
         </button>
 
@@ -1611,7 +1611,7 @@ Generá plan con: diagnóstico ejecutivo, top 3 prioridades inmediatas, acciones
       </div>
 
       <div style={card({ borderColor: "#F7B73144" })}>
-        <div style={{ fontWeight: 700, marginBottom: 4, color: "#F7B731" }}>📌 Seguimiento del plan</div>
+        <div style={{ fontWeight: 700, marginBottom: 4, color: C.warning }}>📌 Seguimiento del plan</div>
         <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>
           {guardado ? "✅ Guardado en Supabase" : "Se guarda automáticamente"}
         </div>
@@ -1637,8 +1637,8 @@ Generá plan con: diagnóstico ejecutivo, top 3 prioridades inmediatas, acciones
                 width: 20,
                 height: 20,
                 borderRadius: 5,
-                border: `2px solid ${seguimiento[i] ? "#F7B731" : "#4B5563"}`,
-                background: seguimiento[i] ? "#F7B731" : "transparent",
+                border: `2px solid ${seguimiento[i] ? C.warning : "#4B5563"}`,
+                background: seguimiento[i] ? C.warning : "transparent",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1726,7 +1726,7 @@ function Auditoria() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, background: C.bg, borderRadius: 8, height: 8, overflow: "hidden" }}>
+          <div style={{ flex: 1, background: C.bgSoft, borderRadius: 999, height: 8, overflow: "hidden" }}>
             <div
               style={{
                 height: "100%",
@@ -1804,7 +1804,7 @@ function Auditoria() {
             <div key={i} style={card({ marginBottom: 10 })}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: 700 }}>{s.empresa}</span>
-                <span style={badge(s.pct >= 80 ? "#2EC4B6" : "#F7B731")}>{s.pct}%</span>
+                <span style={badge(s.pct >= 80 ? C.success : C.warning)}>{s.pct}%</span>
               </div>
               <div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>📅 {s.fecha}</div>
               {s.obs && <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>💬 {s.obs}</div>}
@@ -1871,7 +1871,7 @@ function Supervision() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <div style={{ flex: 1, background: C.bg, borderRadius: 8, height: 8, overflow: "hidden" }}>
+          <div style={{ flex: 1, background: C.bgSoft, borderRadius: 999, height: 8, overflow: "hidden" }}>
             <div
               style={{
                 height: "100%",
@@ -2033,7 +2033,7 @@ function Roxana() {
           <button
             key={v}
             onClick={() => setVista(v)}
-            style={{ ...btn(vista === v ? "#9B5DE5" : "#2A2D3E"), fontSize: 12 }}
+            style={{ ...btn(vista === v ? C.accent : C.cardAlt), fontSize: 12 }}
           >
             {v === "kpis" ? "📊 KPIs" : v === "rutina" ? "✅ Rutina diaria" : "➕ Cargar semana"}
           </button>
@@ -2044,12 +2044,12 @@ function Roxana() {
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 20 }}>
             {[
-              { label: "Llamadas realizadas", value: ultima ? ultima.llamadas : "-", color: "#9B5DE5", sub: anteult ? `vs ${anteult.llamadas} sem. ant.` : "" },
-              { label: "Contactos efectivos", value: ultima ? ultima.contactos : "-", color: "#F7B731", sub: `${efectividad}% efectividad` },
-              { label: "Oportunidades generadas", value: ultima ? ultima.oportunidades : "-", color: "#2EC4B6", sub: `${convOport}% de contactos` },
-              { label: "Seguimientos concretados", value: ultima ? ultima.seguimientos : "-", color: "#E84393", sub: ultima && ultima.oportunidades ? `${Math.round((ultima.seguimientos / ultima.oportunidades) * 100)}% de oportunidades` : "" },
-              { label: "Ventas cerradas", value: ultima ? ultima.ventas : "-", color: "#FF6B35", sub: `${convRate}% conversión` },
-              { label: "Monto total", value: ultima ? `$${ultima.monto.toLocaleString()}` : "-", color: "#4CC9F0", sub: "último período" },
+              { label: "Llamadas realizadas", value: ultima ? ultima.llamadas : "-", color: C.accent, sub: anteult ? `vs ${anteult.llamadas} sem. ant.` : "" },
+              { label: "Contactos efectivos", value: ultima ? ultima.contactos : "-", color: C.warning, sub: `${efectividad}% efectividad` },
+              { label: "Oportunidades generadas", value: ultima ? ultima.oportunidades : "-", color: C.success, sub: `${convOport}% de contactos` },
+              { label: "Seguimientos concretados", value: ultima ? ultima.seguimientos : "-", color: C.danger, sub: ultima && ultima.oportunidades ? `${Math.round((ultima.seguimientos / ultima.oportunidades) * 100)}% de oportunidades` : "" },
+              { label: "Ventas cerradas", value: ultima ? ultima.ventas : "-", color: C.brand, sub: `${convRate}% conversión` },
+              { label: "Monto total", value: ultima ? `$${ultima.monto.toLocaleString()}` : "-", color: C.info, sub: "último período" },
             ].map((s, i) => (
               <div key={i} style={card()}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
@@ -2060,7 +2060,7 @@ function Roxana() {
           </div>
 
           <div style={card({ marginBottom: 16 })}>
-            <div style={{ fontWeight: 700, marginBottom: 14, color: "#9B5DE5" }}>📊 Historial semanal</div>
+            <div style={{ fontWeight: 700, marginBottom: 14, color: C.accent }}>📊 Historial semanal</div>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
@@ -2074,11 +2074,11 @@ function Roxana() {
                   {registros.map((r, i) => (
                     <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: "8px 6px", fontWeight: 600 }}>{r.semana}</td>
-                      <td style={{ padding: "8px 6px", color: "#9B5DE5" }}>{r.llamadas}</td>
-                      <td style={{ padding: "8px 6px", color: "#F7B731" }}>{r.contactos}</td>
-                      <td style={{ padding: "8px 6px", color: "#2EC4B6" }}>{r.oportunidades}</td>
-                      <td style={{ padding: "8px 6px", color: "#E84393" }}>{r.seguimientos}</td>
-                      <td style={{ padding: "8px 6px", color: "#FF6B35" }}>{r.ventas}</td>
+                      <td style={{ padding: "8px 6px", color: C.accent }}>{r.llamadas}</td>
+                      <td style={{ padding: "8px 6px", color: C.warning }}>{r.contactos}</td>
+                      <td style={{ padding: "8px 6px", color: C.success }}>{r.oportunidades}</td>
+                      <td style={{ padding: "8px 6px", color: C.danger }}>{r.seguimientos}</td>
+                      <td style={{ padding: "8px 6px", color: C.brand }}>{r.ventas}</td>
                       <td style={{ padding: "8px 6px", color: C.muted }}>${r.monto.toLocaleString()}</td>
                     </tr>
                   ))}
@@ -2087,7 +2087,7 @@ function Roxana() {
             </div>
           </div>
 
-          <button onClick={analizar} disabled={aiLoad} style={{ ...btn("#9B5DE5"), opacity: aiLoad ? 0.5 : 1 }}>
+          <button onClick={analizar} disabled={aiLoad} style={{ ...btn(C.accent), opacity: aiLoad ? 0.5 : 1 }}>
             {aiLoad ? "Analizando..." : "✨ Análisis completo con IA"}
           </button>
 
@@ -2097,7 +2097,7 @@ function Roxana() {
 
       {vista === "rutina" && (
         <div style={card()}>
-          <div style={{ fontWeight: 700, marginBottom: 4, color: "#9B5DE5" }}>✅ Rutina diaria de Roxana</div>
+          <div style={{ fontWeight: 700, marginBottom: 4, color: C.accent }}>✅ Rutina diaria de Roxana</div>
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Basada en el Manual Operativo CELOG</div>
 
           {RUTINA_DIARIA.map((item, i) => (
@@ -2121,8 +2121,8 @@ function Roxana() {
                   width: 20,
                   height: 20,
                   borderRadius: 5,
-                  border: `2px solid ${rutina[i] ? "#9B5DE5" : "#4B5563"}`,
-                  background: rutina[i] ? "#9B5DE5" : "transparent",
+                  border: `2px solid ${rutina[i] ? C.accent : "#4B5563"}`,
+                  background: rutina[i] ? C.accent : "transparent",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -2183,7 +2183,7 @@ function Roxana() {
             </div>
           </div>
 
-          <button onClick={agregar} disabled={!semana || !llamadas} style={{ ...btn("#9B5DE5"), opacity: !semana || !llamadas ? 0.5 : 1 }}>
+          <button onClick={agregar} disabled={!semana || !llamadas} style={{ ...btn(C.accent), opacity: !semana || !llamadas ? 0.5 : 1 }}>
             💾 Guardar en Supabase
           </button>
         </div>
@@ -2216,7 +2216,7 @@ function Manaos() {
       <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>Cliente: Néstor Hidalgo · Objetivo: Aumentar ventas</div>
 
       <div style={card({ marginBottom: 20, borderColor: "#2EC4B644" })}>
-        <div style={{ fontWeight: 700, marginBottom: 4, color: "#2EC4B6" }}>✨ Generá una estrategia con IA</div>
+        <div style={{ fontWeight: 700, marginBottom: 4, color: C.success }}>✨ Generá una estrategia con IA</div>
         <span style={lbl}>Contexto actual (opcional)</span>
         <textarea
           style={{ ...inp, minHeight: 80, resize: "vertical", marginBottom: 14 }}
@@ -2224,7 +2224,7 @@ function Manaos() {
           value={contexto}
           onChange={(e) => setContexto(e.target.value)}
         />
-        <button onClick={generar} disabled={aiLoad} style={{ ...btn("#2EC4B6"), opacity: aiLoad ? 0.5 : 1 }}>
+        <button onClick={generar} disabled={aiLoad} style={{ ...btn(C.success), opacity: aiLoad ? 0.5 : 1 }}>
           {aiLoad ? "Generando..." : "✨ Generar Estrategia"}
         </button>
         <AIBox text={aiOut} loading={aiLoad} />
@@ -2234,10 +2234,10 @@ function Manaos() {
         <div key={p.id} style={card({ marginBottom: 12 })}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontWeight: 700 }}>Estrategia MANAOS</span>
-            <span style={badge("#2EC4B6")}>Plan IA</span>
+            <span style={badge(C.success)}>Plan IA</span>
           </div>
           <details>
-            <summary style={{ fontSize: 12, color: "#2EC4B6", cursor: "pointer" }}>Ver estrategia →</summary>
+            <summary style={{ fontSize: 12, color: C.success, cursor: "pointer" }}>Ver estrategia →</summary>
             <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{p.contenido}</div>
           </details>
         </div>
@@ -2275,7 +2275,7 @@ function Planes() {
       <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>🎯 Planes de Operación</div>
 
       <div style={card({ marginBottom: 20 })}>
-        <div style={{ fontWeight: 700, marginBottom: 14, color: "#FF6B35" }}>✨ Nuevo plan con IA</div>
+        <div style={{ fontWeight: 700, marginBottom: 14, color: C.brand }}>✨ Nuevo plan con IA</div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <div>
@@ -2301,7 +2301,7 @@ function Planes() {
           onChange={(e) => setObjetivo(e.target.value)}
         />
 
-        <button onClick={generar} disabled={aiLoad || !objetivo.trim()} style={{ ...btn("#FF6B35"), opacity: aiLoad || !objetivo.trim() ? 0.5 : 1 }}>
+        <button onClick={generar} disabled={aiLoad || !objetivo.trim()} style={{ ...btn(C.brand), opacity: aiLoad || !objetivo.trim() ? 0.5 : 1 }}>
           {aiLoad ? "Generando..." : "✨ Generar Plan"}
         </button>
 
@@ -2312,11 +2312,11 @@ function Planes() {
         <div key={p.id} style={card({ marginBottom: 10 })}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontWeight: 700 }}>{p.empresa}</span>
-            <span style={badge("#FF6B35")}>{p.plazo}</span>
+            <span style={badge(C.brand)}>{p.plazo}</span>
           </div>
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>🎯 {p.objetivo}</div>
           <details>
-            <summary style={{ fontSize: 12, color: "#FF6B35", cursor: "pointer" }}>Ver plan →</summary>
+            <summary style={{ fontSize: 12, color: C.brand, cursor: "pointer" }}>Ver plan →</summary>
             <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{p.contenido}</div>
           </details>
         </div>
@@ -2377,7 +2377,7 @@ Respondés en español rioplatense, directo y práctico.`;
                 fontSize: 13,
                 lineHeight: 1.75,
                 whiteSpace: "pre-wrap",
-                background: m.role === "user" ? "#FF6B35" : C.card,
+                background: m.role === "user" ? C.brand : C.card,
                 border: m.role === "assistant" ? `1px solid ${C.border}` : "none"
               }}
             >
@@ -2395,7 +2395,7 @@ Respondés en español rioplatense, directo y práctico.`;
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
         />
-        <button onClick={send} disabled={loading || !input.trim()} style={{ ...btn("#FF6B35"), opacity: loading || !input.trim() ? 0.5 : 1 }}>
+        <button onClick={send} disabled={loading || !input.trim()} style={{ ...btn(C.brand), opacity: loading || !input.trim() ? 0.5 : 1 }}>
           →
         </button>
       </div>
@@ -2457,10 +2457,11 @@ export default function App() {
   };
 
   return (
-    <div style={{ fontFamily: "'Segoe UI', sans-serif", background: C.bg, minHeight: "100vh", color: C.text, margin: 0, padding: 0, width: "100%" }}>
+    <div style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif", background: C.bgSoft, minHeight: "100vh", color: C.text, margin: 0, padding: 0, width: "100%" }}>
       <div
         style={{
-          background: C.card,
+          background: "rgba(20,25,34,0.92)",
+          backdropFilter: "blur(14px)",
           borderBottom: `1px solid ${C.border}`,
           padding: "14px 20px",
           display: "flex",
@@ -2484,12 +2485,13 @@ export default function App() {
           <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: 0.2 }}>Altamiranda Gestión</div>
         </div>
 
-        <span style={badge("#9B5DE5")}>✨ IA Activa</span>
+        <span style={badge(C.brandSoft)}>✨ IA Activa</span>
       </div>
 
       <div
         style={{
-          background: C.card,
+          background: "rgba(20,25,34,0.88)",
+          backdropFilter: "blur(12px)",
           display: "flex",
           gap: 2,
           padding: "6px 16px",
@@ -2502,14 +2504,14 @@ export default function App() {
             key={t.id}
             onClick={() => cambiarTab(t.id)}
             style={{
-              background: tab === t.id ? "#FF6B35" : "transparent",
-              color: tab === t.id ? "white" : C.muted,
-              border: "none",
+              background: tab === t.id ? `linear-gradient(180deg, ${C.brand} 0%, ${C.brandDeep} 100%)` : "transparent",
+              color: tab === t.id ? "#FFFFFF" : C.muted,
               borderRadius: 8,
               padding: "8px 16px",
               cursor: "pointer",
               fontSize: 13,
-              fontWeight: tab === t.id ? 700 : 400,
+              fontWeight: tab === t.id ? 700 : 500,
+              border: tab === t.id ? `1px solid ${C.brand}` : "1px solid transparent",
               whiteSpace: "nowrap"
             }}
           >
