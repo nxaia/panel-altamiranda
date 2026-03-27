@@ -517,6 +517,59 @@ function AttachmentUploader({ files = [], setFiles, title = "Archivos de apoyo",
   );
 }
 
+
+function InteractiveButton({
+  children,
+  onClick,
+  active = false,
+  accentColor = C.brand,
+  variant = "tab",
+  style = {},
+  disabled = false
+}) {
+  const [hover, setHover] = useState(false);
+
+  const baseStyle =
+    variant === "quick"
+      ? {
+          background: hover ? `${accentColor}12` : "#FFFFFF",
+          color: hover ? accentColor : C.text,
+          border: `1px solid ${hover ? accentColor : C.border}`,
+          textAlign: "left",
+          width: "100%",
+          boxShadow: hover ? "0 8px 18px rgba(15,23,42,0.08)" : "none"
+        }
+      : {
+          background: active ? accentColor : hover ? "#E8EEF5" : C.cardAlt,
+          color: active ? "#FFFFFF" : C.text,
+          border: `1px solid ${active ? accentColor : hover ? "#D7E0EA" : C.border}`,
+          boxShadow: hover && !active ? "0 6px 16px rgba(15,23,42,0.06)" : "none"
+        };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        borderRadius: 10,
+        padding: variant === "quick" ? "12px 14px" : "9px 16px",
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontSize: 13,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+        transition: "all 0.18s ease",
+        opacity: disabled ? 0.6 : 1,
+        ...baseStyle,
+        ...style
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function AIBox({ text, loading }) {
   if (!text && !loading) return null;
 
@@ -1279,18 +1332,16 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         {subtabs.map((item) => (
-          <button
+          <InteractiveButton
             key={item.id}
             onClick={() => setSubtab(item.id)}
-            style={{
-              ...btn(subtab === item.id ? empresa.color : "#2A2D3E"),
-              fontSize: 12,
-              color: subtab === item.id ? "white" : C.text,
-              borderColor: subtab === item.id ? empresa.color : C.border
-            }}
+            active={subtab === item.id}
+            accentColor={empresa.color}
+            variant="tab"
+            style={{ fontSize: 12 }}
           >
             {item.label}
-          </button>
+          </InteractiveButton>
         ))}
       </div>
 
@@ -1327,13 +1378,14 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
             <div style={{ fontWeight: 700, marginBottom: 10, color: empresa.color }}>Accesos rápidos</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {["Abrir notas de la empresa", "Ver dashboard ejecutivo", "Registrar plan de acción", "Actualizar control operativo"].map((item, idx) => (
-                <button
+                <InteractiveButton
                   key={idx}
                   onClick={() => setSubtab(["notas", "dashboard", "planes", "control"][idx])}
-                  style={{ ...btn(empresa.color, true), textAlign: "left" }}
+                  accentColor={empresa.color}
+                  variant="quick"
                 >
                   {item}
-                </button>
+                </InteractiveButton>
               ))}
             </div>
           </div>
