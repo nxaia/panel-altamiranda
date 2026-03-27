@@ -3,6 +3,75 @@ import { useState, useEffect } from "react";
 const SUPABASE_URL = "https://yencfonwqzqbtoicoukf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_QoEI3g_X9PaQdAFCL7rMjA_j2fAHAfx";
 
+const STORAGE_BUCKET = "ia-archivos";
+
+async function readFileSnippet(file, maxLength = 4000) {
+  const textLikeExtensions = [".txt", ".md", ".json", ".csv", ".log", ".html", ".xml"];
+  const lower = file.name.toLowerCase();
+  const isTextLike = file.type.startsWith("text/") || textLikeExtensions.some((ext) => lower.endsWith(ext));
+
+  if (!isTextLike) return null;
+
+  try {
+    const content = await file.text();
+    return content.slice(0, maxLength);
+  } catch {
+    return null;
+  }
+}
+
+async function uploadFileToSupabase(file) {
+  const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  const filePath = safeName;
+
+  const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${filePath}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "x-upsert": "true",
+      "Content-Type": file.type || "application/octet-stream"
+    },
+    body: file
+  });
+
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text().catch(() => "");
+    throw new Error(errText || "No se pudo subir el archivo a Supabase Storage.");
+  }
+
+  const snippet = await readFileSnippet(file);
+
+  return {
+    name: file.name,
+    type: file.type || "archivo",
+    size: file.size || 0,
+    path: filePath,
+    url: `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${filePath}`,
+    snippet
+  };
+}
+
+async function uploadFilesToSupabase(files = []) {
+  if (!files.length) return [];
+  const uploads = [];
+  for (const file of files) {
+    uploads.push(await uploadFileToSupabase(file));
+  }
+  return uploads;
+}
+
+function buildAdjuntosPrompt(adjuntos = []) {
+  if (!adjuntos.length) return "Adjuntos: no se enviaron archivos.";
+  return `Adjuntos disponibles:\n${adjuntos
+    .map((file, index) => {
+      const sizeKb = file.size ? `${Math.max(1, Math.round(file.size / 1024))} KB` : "tamaño no disponible";
+      const snippet = file.snippet ? `\nExtracto útil:\n${file.snippet}` : "";
+      return `${index + 1}. ${file.name} (${file.type || "archivo"}, ${sizeKb})\nURL: ${file.url}${snippet}`;
+    })
+    .join("\n\n")}`;
+}
+
 async function dbGet(tabla) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?order=created_at.desc`, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
@@ -120,7 +189,7 @@ function NotasEmpresa({ empresaFija = null, compact = false }) {
   return (
     <div>
       <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 20 }}>
-        🧠 Notas por Empresa
+        🧠 Notas por empresa
       </div>
 
       <div style={card({ marginBottom: 20 })}>
@@ -138,7 +207,7 @@ function NotasEmpresa({ empresaFija = null, compact = false }) {
           style={{ ...inp, minHeight: 80 }}
           value={nota}
           onChange={(e) => setNota(e.target.value)}
-          placeholder="Escribí una nota..."
+          placeholder="Escribe una nota operativa, hallazgo o recordatorio..."
         />
 
         <button onClick={guardarNota} style={{ ...btn("#FF6B35"), marginTop: 10 }}>
@@ -379,6 +448,71 @@ async function callAI(system, userMsg, onChunk) {
   return full;
 }
 
+
+function AttachmentUploader({ files = [], setFiles, title = "Archivos de apoyo", hint = "Aquí puedes adjuntar imágenes o archivos para dejar contexto asociado a la consulta." }) {
+  const handleChange = (e) => {
+    const incoming = Array.from(e.target.files || []);
+    if (!incoming.length) return;
+    setFiles((prev) => [...prev, ...incoming]);
+    e.target.value = "";
+  };
+
+  const removeFile = (index) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div style={{ ...card({ padding: 14, marginBottom: 14, background: C.bgSoft }) }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>{hint}</div>
+
+      <label
+        style={{
+          ...btn(C.brand, true),
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "pointer"
+        }}
+      >
+        📎 Seleccionar archivos
+        <input type="file" multiple onChange={handleChange} style={{ display: "none" }} />
+      </label>
+
+      {files.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+          {files.map((file, index) => (
+            <div
+              key={`${file.name}-${index}`}
+              style={{
+                background: C.card,
+                border: `1px solid ${C.border}`,
+                borderRadius: 10,
+                padding: "10px 12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis" }}>{file.name}</div>
+                <div style={{ fontSize: 11, color: C.dim }}>
+                  {file.type || "archivo"} · {Math.max(1, Math.round((file.size || 0) / 1024))} KB
+                </div>
+              </div>
+
+              <button onClick={() => removeFile(index)} style={{ ...btn(C.danger, true), padding: "6px 10px", fontSize: 11 }}>
+                Quitar
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AIBox({ text, loading }) {
   if (!text && !loading) return null;
 
@@ -568,8 +702,8 @@ function Dashboard({ setTab, onOpenEmpresa }) {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Buenos días, Ale 👋</div>
-        <div style={{ color: C.muted, fontSize: 14, marginBottom: 16 }}>Panel ejecutivo con control operativo, IA y visibilidad real por empresa</div>
+        <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Bienvenido, Alejandro</div>
+        <div style={{ color: C.muted, fontSize: 14, marginBottom: 16 }}>Panel ejecutivo con control operativo, IA y visibilidad clara por empresa</div>
         <Reloj />
         <AlertaTATITO />
       </div>
@@ -769,6 +903,9 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [planLoadingMap, setPlanLoadingMap] = useState({});
   const [planOutputMap, setPlanOutputMap] = useState({});
   const [planContextMap, setPlanContextMap] = useState({});
+  const [dashboardFiles, setDashboardFiles] = useState([]);
+  const [iaFiles, setIaFiles] = useState([]);
+  const [planFilesMap, setPlanFilesMap] = useState({});
 
   useEffect(() => {
     if (empresa) {
@@ -841,6 +978,7 @@ function EmpresaDetalle({ empresaId, onBack }) {
       .join("\n\n");
 
     const contextoUsuario = planContextMap[plan.id]?.trim() || "sin contexto adicional";
+    const adjuntosPlan = await uploadFilesToSupabase(planFilesMap[plan.id] || []);
 
     const instrucciones = {
       mejora_ia: "Mejorá este plan. Hacelo más concreto, ejecutivo y accionable. Respondé con una versión mejorada y una breve justificación.",
@@ -869,6 +1007,8 @@ ${contextoUsuario}
 
 Historial previo del plan:
 ${historialPrevio || "Sin historial"}
+
+${buildAdjuntosPrompt(adjuntosPlan)}
 
 Tarea:
 ${instrucciones[tipoEvento]}`;
@@ -942,19 +1082,27 @@ ${instrucciones[tipoEvento]}`;
     setDashboardLoading(true);
     setDashboardText("");
 
-    const prompt = `Empresa: ${empresa.nombre}
+    try {
+      const adjuntos = await uploadFilesToSupabase(dashboardFiles);
+      const prompt = `Empresa: ${empresa.nombre}
 Cliente: ${cliente?.nombre || "-"}
 Tipo: ${empresa.tipo}
 Rol: ${empresa.rol}
-Generá un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y próximos pasos.`;
+${buildAdjuntosPrompt(adjuntos)}
+Genera un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y próximos pasos.`;
 
-    await callAI(
-      "Sos un consultor de gestión y operaciones para PyMEs argentinas. Generás resúmenes ejecutivos claros y accionables.",
-      prompt,
-      (t) => setDashboardText(t)
-    );
+      await callAI(
+        "Sos un consultor de gestión y operaciones para PyMEs argentinas. Generas resúmenes ejecutivos claros y accionables.",
+        prompt,
+        (t) => setDashboardText(t)
+      );
 
-    setDashboardLoading(false);
+      setDashboardFiles([]);
+    } catch (error) {
+      setDashboardText(`No se pudieron subir los adjuntos: ${error.message}`);
+    } finally {
+      setDashboardLoading(false);
+    }
   };
 
   const generarPlanIA = async () => {
@@ -962,14 +1110,18 @@ Generá un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y pr
     setIaLoading(true);
     setIaPlan("");
 
-    const prompt = `Empresa: ${empresa.nombre}
+    try {
+      const adjuntos = await uploadFilesToSupabase(iaFiles);
+
+      const prompt = `Empresa: ${empresa.nombre}
 Cliente: ${cliente?.nombre || "-"}
 Tipo: ${empresa.tipo}
-Rol actual de Alejandro: ${empresa.rol}
+Rol operativo de Alejandro: ${empresa.rol}
 Contexto adicional: ${iaContexto || "sin contexto adicional"}
+${buildAdjuntosPrompt(adjuntos)}
 
-Generá un análisis ejecutivo breve y un plan de acción estructurado para esta empresa.
-Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
+Genera un análisis ejecutivo breve y un plan de acción estructurado para esta empresa.
+Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
 {
   "analisis": "resumen ejecutivo breve del problema u oportunidad detectada",
   "titulo": "acción principal en una sola línea",
@@ -979,52 +1131,60 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
   "justificacion": "breve explicación ejecutiva"
 }`;
 
-    const fullResponse = await callAI(
-      "Sos un consultor senior en operaciones y planes de acción para PyMEs. Tus recomendaciones son concretas, ejecutables y profesionales. Devolvés JSON válido sin markdown ni texto extra.",
-      prompt,
-      (t) => setIaPlan(t)
-    );
+      const fullResponse = await callAI(
+        "Sos un consultor senior en operaciones y planes de acción para PyMEs. Tus recomendaciones son concretas, ejecutables y profesionales. Devuelves JSON válido sin markdown ni texto extra.",
+        prompt,
+        (t) => setIaPlan(t)
+      );
 
-    let planData;
+      let planData;
 
-    try {
-      planData = JSON.parse(limpiarJSON(fullResponse));
-    } catch (e) {
-      console.error("Error parseando IA", e);
-      setIaPlan("Error: la IA devolvió un formato inválido. Volvé a generar el análisis.");
-      setIaLoading(false);
-      return;
-    }
+      try {
+        planData = JSON.parse(limpiarJSON(fullResponse));
+      } catch (e) {
+        console.error("Error parseando IA", e);
+        setIaPlan("Error: la IA devolvió un formato inválido. Vuelve a generar el análisis.");
+        setIaLoading(false);
+        return;
+      }
 
-    setGuardandoPlan(true);
+      setGuardandoPlan(true);
 
-    try {
-      const analisisInsert = await dbInsert("analisis_empresas", {
-        empresa: empresa.nombre,
-        contenido: planData.analisis || planData.justificacion || "Análisis generado por IA",
-        contexto: iaContexto || null,
-        tipo: "ia"
-      });
+      try {
+        const analisisInsert = await dbInsert("analisis_empresas", {
+          empresa: empresa.nombre,
+          contenido: planData.analisis || planData.justificacion || "Análisis generado por IA",
+          contexto: JSON.stringify({
+            texto: iaContexto || null,
+            adjuntos
+          }),
+          tipo: "ia"
+        });
 
-      const nuevoAnalisisId = analisisInsert?.[0]?.id || null;
-      if (nuevoAnalisisId) setAnalisisSeleccionado(nuevoAnalisisId);
+        const nuevoAnalisisId = analisisInsert?.[0]?.id || null;
+        if (nuevoAnalisisId) setAnalisisSeleccionado(nuevoAnalisisId);
 
-      await dbInsert("planes_empresas", {
-        empresa: empresa.nombre,
-        titulo: planData.titulo || `Plan IA para ${empresa.nombre}`,
-        inicio: planData.inicio || null,
-        plazo: planData.plazo || null,
-        estado: planData.estado || "Pendiente",
-        tipo: "ia",
-        justificacion: planData.justificacion || null,
-        analisis_id: nuevoAnalisisId
-      });
+        await dbInsert("planes_empresas", {
+          empresa: empresa.nombre,
+          titulo: planData.titulo || `Plan IA para ${empresa.nombre}`,
+          inicio: planData.inicio || null,
+          plazo: planData.plazo || null,
+          estado: planData.estado || "Pendiente",
+          tipo: "ia",
+          justificacion: planData.justificacion || null,
+          analisis_id: nuevoAnalisisId
+        });
 
-      setIaPlan(JSON.stringify(planData, null, 2));
-      await cargarPlanes();
-      await cargarAnalisis();
-    } finally {
-      setGuardandoPlan(false);
+        setIaPlan(JSON.stringify(planData, null, 2));
+        setIaFiles([]);
+        await cargarPlanes();
+        await cargarAnalisis();
+      } finally {
+        setGuardandoPlan(false);
+        setIaLoading(false);
+      }
+    } catch (error) {
+      setIaPlan(`No se pudieron subir los adjuntos: ${error.message}`);
       setIaLoading(false);
     }
   };
@@ -1135,8 +1295,7 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
           <div style={card()}>
             <div style={{ fontWeight: 700, marginBottom: 10, color: empresa.color }}>Resumen operativo</div>
             <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
-              Este espacio concentra la operación de <strong style={{ color: C.text }}>{empresa.nombre}</strong>. Desde acá Ale puede registrar notas,
-              preparar dashboards mensuales, definir planes de acción, revisar actividad IA y detectar riesgos sin dispersar la información.
+              Este espacio concentra la operación de <strong style={{ color: C.text }}>{empresa.nombre}</strong>. Aquí puedes registrar notas, preparar dashboards mensuales, definir planes de acción, revisar actividad IA y detectar riesgos sin dispersar la información.
             </div>
             <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
               <div style={{ background: C.bg, borderRadius: 10, padding: 12 }}>
@@ -1238,8 +1397,14 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
           <div style={card({ marginBottom: 14 })}>
             <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Dashboard ejecutivo</div>
             <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>
-              Ahora esta vista ya resume estado, actividad y alertas. Además podés generar un resumen ejecutivo mensual para presentar al cliente.
+              Aquí puedes revisar estado, actividad y alertas. También puedes generar un resumen ejecutivo mensual para presentar al cliente.
             </div>
+            <AttachmentUploader
+              files={dashboardFiles}
+              setFiles={setDashboardFiles}
+              title="Adjuntos para el dashboard"
+              hint="Aquí puedes subir reportes, imágenes o documentos para dejar contexto adicional antes de generar el resumen ejecutivo."
+            />
             <button onClick={generarDashboard} disabled={dashboardLoading} style={{ ...btn(empresa.color), opacity: dashboardLoading ? 0.6 : 1 }}>
               {dashboardLoading ? "Generando..." : "✨ Generar dashboard con IA"}
             </button>
@@ -1257,7 +1422,7 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
               <span style={lbl}>Acción</span>
               <input
                 style={{ ...inp, flex: 1 }}
-                placeholder="Escribí una acción concreta para esta empresa..."
+                placeholder="Escribe una acción concreta para esta empresa..."
                 value={accion}
                 onChange={(e) => setAccion(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && agregarAccion()}
@@ -1371,9 +1536,22 @@ Respondé SOLO en JSON válido, sin texto extra, con este formato exacto:
 
                     <textarea
                       style={{ ...inp, minHeight: 70, resize: "vertical", marginBottom: 10 }}
-                      placeholder="Contexto puntual para este plan. Ej: quedó frenado, hay urgencia comercial, cambió prioridad..."
+                      placeholder="Aquí puedes agregar contexto puntual para este plan. Ejemplo: quedó frenado, hay urgencia comercial o cambió la prioridad."
                       value={planContextMap[item.id] || ""}
                       onChange={(e) => setPlanContextMap((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                    />
+
+                    <AttachmentUploader
+                      files={planFilesMap[item.id] || []}
+                      setFiles={(updater) =>
+                        setPlanFilesMap((prev) => {
+                          const current = prev[item.id] || [];
+                          const nextValue = typeof updater === "function" ? updater(current) : updater;
+                          return { ...prev, [item.id]: nextValue };
+                        })
+                      }
+                      title="Adjuntos para esta acción"
+                      hint="Aquí puedes subir material de apoyo antes de pedir mejora, reformulación, seguimiento o siguiente paso."
                     />
 
                     <AIBox text={planOutputMap[item.id] || ""} loading={!!planLoadingMap[item.id]} />
@@ -2263,6 +2441,7 @@ function Planes() {
   const [aiOut, setAiOut] = useState("");
   const [aiLoad, setAiLoad] = useState(false);
   const [planes, setPlanes] = useState([]);
+  const [files, setFiles] = useState([]);
 
   const generar = async () => {
     if (!objetivo.trim()) return;
@@ -2270,14 +2449,25 @@ function Planes() {
     setAiLoad(true);
     setAiOut("");
 
-    const result = await callAI(
-      "Sos un consultor de negocios experto en PyMEs del NOA argentino.",
-      `Empresa: ${empresa}\nObjetivo: ${objetivo}\nPlazo: ${plazo}\nGenerá plan con acciones, responsables, métricas y alertas.`,
-      (t) => setAiOut(t)
-    );
+    try {
+      const adjuntos = await uploadFilesToSupabase(files);
+      const result = await callAI(
+        "Sos un consultor de negocios experto en PyMEs del NOA argentino.",
+        `Empresa: ${empresa}
+Objetivo: ${objetivo}
+Plazo: ${plazo}
+${buildAdjuntosPrompt(adjuntos)}
+Genera un plan con acciones, responsables, métricas y alertas.`,
+        (t) => setAiOut(t)
+      );
 
-    setPlanes((p) => [{ id: Date.now(), empresa, objetivo, plazo, contenido: result }, ...p]);
-    setAiLoad(false);
+      setPlanes((p) => [{ id: Date.now(), empresa, objetivo, plazo, contenido: result, adjuntos }, ...p]);
+      setFiles([]);
+    } catch (error) {
+      setAiOut(`No se pudieron subir los adjuntos: ${error.message}`);
+    } finally {
+      setAiLoad(false);
+    }
   };
 
   return (
@@ -2306,13 +2496,20 @@ function Planes() {
         <span style={lbl}>Objetivo</span>
         <textarea
           style={{ ...inp, minHeight: 70, resize: "vertical", marginBottom: 14 }}
-          placeholder="¿Qué querés lograr?"
+          placeholder="Aquí puedes indicar el objetivo comercial, operativo o estratégico que quieres resolver."
           value={objetivo}
           onChange={(e) => setObjetivo(e.target.value)}
         />
 
+        <AttachmentUploader
+          files={files}
+          setFiles={setFiles}
+          title="Adjuntos para el plan"
+          hint="Aquí puedes subir archivos o imágenes para que queden asociados a la generación del plan."
+        />
+
         <button onClick={generar} disabled={aiLoad || !objetivo.trim()} style={{ ...btn("#FF6B35"), opacity: aiLoad || !objetivo.trim() ? 0.5 : 1 }}>
-          {aiLoad ? "Generando..." : "✨ Generar Plan"}
+          {aiLoad ? "Generando..." : "✨ Generar plan"}
         </button>
 
         <AIBox text={aiOut} loading={aiLoad} />
@@ -2325,6 +2522,11 @@ function Planes() {
             <span style={badge("#FF6B35")}>{p.plazo}</span>
           </div>
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>🎯 {p.objetivo}</div>
+          {p.adjuntos?.length > 0 && (
+            <div style={{ fontSize: 12, color: C.dim, marginBottom: 8 }}>
+              Adjuntos: {p.adjuntos.map((x) => x.name).join(", ")}
+            </div>
+          )}
           <details>
             <summary style={{ fontSize: 12, color: "#FF6B35", cursor: "pointer" }}>Ver plan →</summary>
             <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>{p.contenido}</div>
@@ -2339,37 +2541,52 @@ function Asistente() {
   const [msgs, setMsgs] = useState([
     {
       role: "assistant",
-      text: "Hola Ale! Conozco todas tus empresas, el Manual de CELOG, el diagnóstico de SOL y el contrato de TATITO. Preguntame cualquier cosa 💪"
+      text: "Hola Alejandro. Aquí puedes consultar tus empresas, pedir análisis, revisar contexto histórico y adjuntar archivos para dejar soporte asociado a cada consulta."
     }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [files, setFiles] = useState([]);
 
   const send = async () => {
-    if (!input.trim() || loading) return;
+    if ((!input.trim() && files.length === 0) || loading) return;
 
-    const txt = input.trim();
+    const txt = input.trim() || "Necesito que revises los adjuntos y me indiques próximos pasos.";
     setInput("");
 
     const next = [...msgs, { role: "user", text: txt }, { role: "assistant", text: "" }];
     setMsgs(next);
     setLoading(true);
 
-    const sys = `Sos el asistente personal de Ale Altamiranda, consultor de negocios del NOA argentino.
+    try {
+      const adjuntos = await uploadFilesToSupabase(files);
+
+      const sys = `Sos el asistente personal de Alejandro Altamiranda, consultor de negocios del NOA argentino.
 Clientes: FABIÁN SALGUERO (TATITO 5 franquicias admin general, contrato vence 31/03/2027; SOL SRL auditoría; DEPAL SRL supervisión+auditoría+gerentes; CELOG capacitás a Roxana telemarketer B2B) y NÉSTOR HIDALGO (MANAOS aumentar ventas; DNH supervisión+auditoría).
 Diagnóstico SOL: puntaje 6/10, problemas principales: falta delegación, personal solo despacha, sin redes sociales, sin sistema de stock.
 Manual Roxana CELOG: KPIs = llamadas, contactos efectivos, oportunidades, seguimientos. Proceso: preparar → escuchar → registrar.
-Respondés en español rioplatense, directo y práctico.`;
+Respondes en español neutro, directo, claro y práctico.`;
 
-    await callAI(sys, txt, (t) => {
+      await callAI(sys, `${txt}
+
+${buildAdjuntosPrompt(adjuntos)}`, (t) => {
+        setMsgs((p) => {
+          const u = [...p];
+          u[u.length - 1] = { role: "assistant", text: t };
+          return u;
+        });
+      });
+
+      setFiles([]);
+    } catch (error) {
       setMsgs((p) => {
         const u = [...p];
-        u[u.length - 1] = { role: "assistant", text: t };
+        u[u.length - 1] = { role: "assistant", text: `No se pudieron subir los adjuntos: ${error.message}` };
         return u;
       });
-    });
-
-    setLoading(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -2387,25 +2604,32 @@ Respondés en español rioplatense, directo y práctico.`;
                 fontSize: 13,
                 lineHeight: 1.75,
                 whiteSpace: "pre-wrap",
-                background: m.role === "user" ? "#FF6B35" : C.card,
+                background: m.role === "user" ? "#FF6A1A" : C.card,
                 border: m.role === "assistant" ? `1px solid ${C.border}` : "none"
               }}
             >
-              {m.text || (loading && i === msgs.length - 1 ? <span style={{ color: C.muted }}>✨ Pensando...</span> : "")}
+              {m.text || (loading && i === msgs.length - 1 ? <span style={{ color: C.muted }}>✨ Analizando...</span> : "")}
             </div>
           </div>
         ))}
       </div>
 
+      <AttachmentUploader
+        files={files}
+        setFiles={setFiles}
+        title="Adjuntos para la consulta"
+        hint="Aquí puedes subir imágenes, PDFs, textos o reportes. Se guardan en Supabase Storage y quedan asociados a la consulta."
+      />
+
       <div style={{ display: "flex", gap: 10 }}>
         <input
           style={{ ...inp, flex: 1 }}
-          placeholder="Preguntá sobre cualquiera de tus empresas..."
+          placeholder="Consulta sobre cualquiera de tus empresas o adjunta archivos para dar contexto..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
         />
-        <button onClick={send} disabled={loading || !input.trim()} style={{ ...btn("#FF6B35"), opacity: loading || !input.trim() ? 0.5 : 1 }}>
+        <button onClick={send} disabled={loading || (!input.trim() && files.length === 0)} style={{ ...btn("#FF6B35"), opacity: loading || (!input.trim() && files.length === 0) ? 0.5 : 1 }}>
           →
         </button>
       </div>
