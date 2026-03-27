@@ -2469,34 +2469,19 @@ export default function App() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div
+          <img
+            src={logoSrc}
+            alt="Logo Altamiranda Gestión"
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: "50%",
-              background: "transparent",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-              border: `1px solid ${C.border}`,
+              height: 42,
+              width: "auto",
+              objectFit: "contain",
+              display: "block",
               flexShrink: 0
             }}
-          >
-            <img
-              src={logoSrc}
-              alt="Logo Altamiranda Gestión"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                borderRadius: "50%",
-                display: "block"
-              }}
-            />
-          </div>
+          />
 
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Altamiranda Gestión</div>
+          <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: 0.2 }}>Altamiranda Gestión</div>
         </div>
 
         <span style={badge("#9B5DE5")}>✨ IA Activa</span>
