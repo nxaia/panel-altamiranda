@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 
 const SUPABASE_URL = "https://yencfonwqzqbtoicoukf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_QoEI3g_X9PaQdAFCL7rMjA_j2fAHAfx";
-const SUPABASE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/openai-proxy`;
+const SUPABASE_FUNCTION_URL = "https://yencfonwqzqbtoicoukf.supabase.co/functions/v1/openai-proxy";
 
 const STORAGE_BUCKET = "ia-archivos";
 
@@ -418,7 +418,7 @@ function limpiarJSON(texto) {
 }
 
 async function callAI(system, userMsg, onChunk, model = "gpt-4o-mini") {
-  const res = await fetch(SUPABASE_FUNCTION_URL, {
+  const res = await fetch("https://yencfonwqzqbtoicoukf.supabase.co/functions/v1/openai-proxy", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -435,7 +435,8 @@ async function callAI(system, userMsg, onChunk, model = "gpt-4o-mini") {
   const data = await res.json().catch(() => null);
 
   if (!res.ok) {
-    throw new Error(data?.error || data?.details || "Error llamando a la función de IA.");
+    console.error("Error IA:", data);
+    throw new Error(data?.error || data?.details || "Error llamando a IA");
   }
 
   const text = data?.text || "";
