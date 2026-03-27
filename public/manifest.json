@@ -1,11 +1,10 @@
 {
-  "id": "/?source=pwa-altamiranda-v3",
   "name": "Altamiranda Gestión",
   "short_name": "Altamiranda",
-  "start_url": "/?source=pwa-altamiranda-v3",
+  "description": "Sistema operativo empresarial con IA para gestión, análisis y toma de decisiones.",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#0F1117",
   "theme_color": "#0F1117",
   "icons": [
@@ -13,13 +12,13 @@
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
