@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 
 const SUPABASE_URL = "https://yencfonwqzqbtoicoukf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_QoEI3g_X9PaQdAFCL7rMjA_j2fAHAfx";
+const SUPABASE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/openai-proxy`;
 
 const STORAGE_BUCKET = "ia-archivos";
 
@@ -322,22 +323,18 @@ const PLAN_ITEMS = [
 ];
 
 const C = {
-  bg: "#F7F9FC",
-  bgSoft: "#FFFFFF",
-  card: "#FFFFFF",
-  cardAlt: "#F1F5F9",
-  border: "#E2E8F0",
-  text: "#0F172A",
-  muted: "#64748B",
-  dim: "#94A3B8",
-
+  bg: "#0B0F17",
+  bgSoft: "#111826",
+  card: "#151D2B",
+  cardAlt: "#1C2636",
+  border: "#253247",
+  text: "#E5E7EB",
+  muted: "#94A3B8",
+  dim: "#64748B",
   brand: "#FF6A1A",
   brandDeep: "#D9550B",
   brandSoft: "#FFB182",
-
-  accent: "#F97316",
-  accentSoft: "#FDBA74",
-
+  accent: "#F59E0B",
   success: "#22C55E",
   warning: "#F59E0B",
   danger: "#EF4444",
@@ -416,40 +413,32 @@ function limpiarJSON(texto) {
   return clean;
 }
 
-async function callAI(system, userMsg, onChunk) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+async function callAI(system, userMsg, onChunk, model = "gpt-4o-mini") {
+  const res = await fetch(SUPABASE_FUNCTION_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`
+    },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1200,
-      stream: true,
       system,
-      messages: [{ role: "user", content: userMsg }]
-    }),
+      userMsg,
+      model
+    })
   });
 
-  const reader = res.body.getReader();
-  const dec = new TextDecoder();
-  let full = "";
+  const data = await res.json().catch(() => null);
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    for (const line of dec.decode(value).split("\n").filter((l) => l.startsWith("data: "))) {
-      try {
-        const d = JSON.parse(line.slice(6));
-        const t = d.delta?.text || "";
-        if (t) {
-          full += t;
-          onChunk(full);
-        }
-      } catch {}
-    }
+  if (!res.ok) {
+    throw new Error(data?.error || data?.details || "Error llamando a la función de IA.");
   }
 
-  return full;
+  const text = data?.text || "";
+
+  if (onChunk) onChunk(text);
+
+  return text;
 }
 
 
@@ -514,59 +503,6 @@ function AttachmentUploader({ files = [], setFiles, title = "Archivos de apoyo",
         </div>
       )}
     </div>
-  );
-}
-
-
-function InteractiveButton({
-  children,
-  onClick,
-  active = false,
-  accentColor = C.brand,
-  variant = "tab",
-  style = {},
-  disabled = false
-}) {
-  const [hover, setHover] = useState(false);
-
-  const baseStyle =
-    variant === "quick"
-      ? {
-          background: hover ? `${accentColor}12` : "#FFFFFF",
-          color: hover ? accentColor : C.text,
-          border: `1px solid ${hover ? accentColor : C.border}`,
-          textAlign: "left",
-          width: "100%",
-          boxShadow: hover ? "0 8px 18px rgba(15,23,42,0.08)" : "none"
-        }
-      : {
-          background: active ? accentColor : hover ? "#E8EEF5" : C.cardAlt,
-          color: active ? "#FFFFFF" : C.text,
-          border: `1px solid ${active ? accentColor : hover ? "#D7E0EA" : C.border}`,
-          boxShadow: hover && !active ? "0 6px 16px rgba(15,23,42,0.06)" : "none"
-        };
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        borderRadius: 10,
-        padding: variant === "quick" ? "12px 14px" : "9px 16px",
-        cursor: disabled ? "not-allowed" : "pointer",
-        fontSize: 13,
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-        transition: "all 0.18s ease",
-        opacity: disabled ? 0.6 : 1,
-        ...baseStyle,
-        ...style
-      }}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -1332,16 +1268,18 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         {subtabs.map((item) => (
-          <InteractiveButton
+          <button
             key={item.id}
             onClick={() => setSubtab(item.id)}
-            active={subtab === item.id}
-            accentColor={empresa.color}
-            variant="tab"
-            style={{ fontSize: 12 }}
+            style={{
+              ...btn(subtab === item.id ? empresa.color : "#2A2D3E"),
+              fontSize: 12,
+              color: subtab === item.id ? "white" : C.text,
+              borderColor: subtab === item.id ? empresa.color : C.border
+            }}
           >
             {item.label}
-          </InteractiveButton>
+          </button>
         ))}
       </div>
 
@@ -1378,14 +1316,13 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
             <div style={{ fontWeight: 700, marginBottom: 10, color: empresa.color }}>Accesos rápidos</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {["Abrir notas de la empresa", "Ver dashboard ejecutivo", "Registrar plan de acción", "Actualizar control operativo"].map((item, idx) => (
-                <InteractiveButton
+                <button
                   key={idx}
                   onClick={() => setSubtab(["notas", "dashboard", "planes", "control"][idx])}
-                  accentColor={empresa.color}
-                  variant="quick"
+                  style={{ ...btn(empresa.color, true), textAlign: "left" }}
                 >
                   {item}
-                </InteractiveButton>
+                </button>
               ))}
             </div>
           </div>
