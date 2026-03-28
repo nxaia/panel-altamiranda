@@ -436,7 +436,7 @@ async function callAI(system, userMsg, onChunk, model = "gpt-4o-mini") {
 
   if (!res.ok) {
     console.error("Error IA:", data);
-    throw new Error(data?.error || data?.details || "Error llamando a IA");
+    throw new Error(data?.error || data?.details || "Error al generar respuesta de KUNO");
   }
 
   const text = data?.text || "";
@@ -1145,7 +1145,7 @@ ${instrucciones[tipoEvento]}`;
 Cliente: ${cliente?.nombre || "-"}
 Tipo: ${empresa.tipo}
 Rol operativo de Alejandro: ${empresa.rol}
-Contexto relevado por Alejandro o por el dueño: ${iaContexto || "sin contexto adicional"}
+Diagnóstico / contexto de la empresa por Alejandro o por el dueño: ${iaContexto || "sin contexto adicional"}
 ${buildAdjuntosPrompt(adjuntos)}
 
 Genera un diagnóstico ejecutivo profesional de esta empresa.
@@ -1180,7 +1180,7 @@ Responde en español neutro, con criterio ejecutivo y foco práctico.`;
       setAnalisisFiles([]);
       await cargarAnalisis();
     } catch (error) {
-      setAnalisisTexto(`No se pudo generar el análisis: ${error.message}`);
+      setAnalisisTexto(`No fue posible generar el análisis: ${error.message}`);
     } finally {
       setAnalisisLoading(false);
     }
@@ -1308,7 +1308,7 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
         setIaLoading(false);
       }
     } catch (error) {
-      setIaPlan(`No se pudo generar el plan: ${error.message}`);
+      setIaPlan(`No fue posible generar el plan: ${error.message}`);
       setIaLoading(false);
     }
   };
@@ -1466,28 +1466,28 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
       {subtab === "analisis" && (
         <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 14 }}>
           <div style={card()}>
-            <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Generar análisis de la empresa</div>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Diagnóstico de la empresa</div>
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-              Aquí puedes plasmar el diagnóstico que Alejandro relevó en la empresa o lo que el dueño comentó sobre el negocio, sus sectores y sus problemas. El análisis se guarda en Supabase y luego puede usarse como base para generar planes.
+              Registra el diagnóstico de la empresa a partir de información operativa, entrevistas o relevamientos internos. Este análisis se guarda y luego puede utilizarse como base para generar planes de acción.
             </div>
 
-            <span style={lbl}>Contexto relevado</span>
+            <span style={lbl}>Diagnóstico / contexto de la empresa</span>
             <textarea
               style={{ ...inp, minHeight: 140, resize: "vertical", marginBottom: 12 }}
               value={iaContexto}
               onChange={(e) => setIaContexto(e.target.value)}
-              placeholder="Ejemplo: problemas de ventas, desorden operativo, fallas en stock, roles poco claros, reclamos del dueño, sectores más afectados, objetivos que quiere lograr..."
+              placeholder="Ej: problemas en ventas, desorden operativo, fallas en stock, estructura de roles, áreas críticas, objetivos del negocio."
             />
 
             <AttachmentUploader
               files={analisisFiles}
               setFiles={setAnalisisFiles}
               title="Adjuntos para el análisis"
-              hint="Aquí puedes subir imágenes, reportes o documentos de apoyo. Si no subes nada, el análisis igual se genera con el contexto escrito."
+              hint="Adjunta documentos, reportes o imágenes relevantes para complementar el diagnóstico. El análisis también puede generarse únicamente con el contexto ingresado."
             />
 
             <button onClick={generarAnalisisIA} disabled={analisisLoading} style={{ ...btn(empresa.color), width: "100%", opacity: analisisLoading ? 0.6 : 1 }}>
-              {analisisLoading ? "Generando y guardando..." : "🧠 Generar análisis y guardarlo"}
+              {analisisLoading ? "Generando y guardando..." : "🧠 Generar análisis"}
             </button>
 
             <AIBox text={analisisTexto} loading={analisisLoading} />
@@ -1498,7 +1498,7 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
 
             {analisisHistorial.length === 0 ? (
               <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, color: C.muted, fontSize: 13 }}>
-                Todavía no hay análisis guardados para esta empresa.
+                No hay análisis registrados para esta empresa.
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -2799,7 +2799,7 @@ ${buildAdjuntosPrompt(adjuntos)}`, (t) => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 200px)" }}>
-      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>🤖 Asistente IA</div>
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>🤖 KUNO</div>
 
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
         {msgs.map((m, i) => (
