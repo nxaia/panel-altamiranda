@@ -948,6 +948,8 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [iaPlan, setIaPlan] = useState("");
   const [iaLoading, setIaLoading] = useState(false);
   const [guardandoPlan, setGuardandoPlan] = useState(false);
+  const [analisisTexto, setAnalisisTexto] = useState("");
+  const [analisisLoading, setAnalisisLoading] = useState(false);
   const [analisisHistorial, setAnalisisHistorial] = useState([]);
   const [analisisSeleccionado, setAnalisisSeleccionado] = useState(null);
   const [historialPlanes, setHistorialPlanes] = useState([]);
@@ -955,6 +957,7 @@ function EmpresaDetalle({ empresaId, onBack }) {
   const [planOutputMap, setPlanOutputMap] = useState({});
   const [planContextMap, setPlanContextMap] = useState({});
   const [dashboardFiles, setDashboardFiles] = useState([]);
+  const [analisisFiles, setAnalisisFiles] = useState([]);
   const [iaFiles, setIaFiles] = useState([]);
   const [planFilesMap, setPlanFilesMap] = useState({});
 
@@ -1129,6 +1132,60 @@ ${instrucciones[tipoEvento]}`;
     await actualizarEstadoPlan(plan.id, nuevoEstado);
   };
 
+
+  const generarAnalisisIA = async () => {
+    if (!empresa) return;
+    setAnalisisLoading(true);
+    setAnalisisTexto("");
+
+    try {
+      const adjuntos = await uploadFilesToSupabase(analisisFiles);
+
+      const prompt = `Empresa: ${empresa.nombre}
+Cliente: ${cliente?.nombre || "-"}
+Tipo: ${empresa.tipo}
+Rol operativo de Alejandro: ${empresa.rol}
+Contexto relevado por Alejandro o por el dueño: ${iaContexto || "sin contexto adicional"}
+${buildAdjuntosPrompt(adjuntos)}
+
+Genera un diagnóstico ejecutivo profesional de esta empresa.
+El análisis debe incluir:
+1. situación general del negocio
+2. problemas principales detectados
+3. oportunidades de mejora
+4. áreas o sectores involucrados
+5. prioridades recomendadas
+
+Responde en español neutro, con criterio ejecutivo y foco práctico.`;
+
+      const respuesta = await callAI(
+        "Sos un consultor senior en diagnóstico empresarial. Analizas negocios reales, detectas problemas, ordenas prioridades y redactas diagnósticos claros, accionables y ejecutivos.",
+        prompt,
+        (t) => setAnalisisTexto(t)
+      );
+
+      const insertResult = await dbInsert("analisis_empresas", {
+        empresa: empresa.nombre,
+        contenido: respuesta,
+        contexto: JSON.stringify({
+          texto: iaContexto || null,
+          adjuntos
+        }),
+        tipo: "ia"
+      });
+
+      const nuevoAnalisisId = insertResult?.[0]?.id || null;
+      if (nuevoAnalisisId) setAnalisisSeleccionado(nuevoAnalisisId);
+
+      setAnalisisFiles([]);
+      await cargarAnalisis();
+    } catch (error) {
+      setAnalisisTexto(`No se pudo generar el análisis: ${error.message}`);
+    } finally {
+      setAnalisisLoading(false);
+    }
+  };
+
   const generarDashboard = async () => {
     setDashboardLoading(true);
     setDashboardText("");
@@ -1163,18 +1220,30 @@ Genera un dashboard ejecutivo mensual breve con: resumen, avances, riesgos y pr�
 
     try {
       const adjuntos = await uploadFilesToSupabase(iaFiles);
+      const analisisBase = analisisHistorial.find((item) => item.id === analisisSeleccionado);
+      const contenidoAnalisis = analisisBase?.contenido || "";
+      const contextoAnalisis = analisisBase?.contexto || "";
 
       const prompt = `Empresa: ${empresa.nombre}
 Cliente: ${cliente?.nombre || "-"}
 Tipo: ${empresa.tipo}
 Rol operativo de Alejandro: ${empresa.rol}
-Contexto adicional: ${iaContexto || "sin contexto adicional"}
+
+Análisis base seleccionado:
+${contenidoAnalisis || "No hay análisis previo seleccionado. Si no existe, primero genera un análisis."}
+
+Contexto guardado del análisis:
+${contextoAnalisis || "Sin contexto adicional guardado."}
+
+Contexto adicional para este plan:
+${iaContexto || "sin contexto adicional"}
+
 ${buildAdjuntosPrompt(adjuntos)}
 
-Genera un análisis ejecutivo breve y un plan de acción estructurado para esta empresa.
+Genera un plan de acción estructurado a partir del análisis disponible.
 Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
 {
-  "analisis": "resumen ejecutivo breve del problema u oportunidad detectada",
+  "analisis": "síntesis ejecutiva del análisis base utilizado",
   "titulo": "acción principal en una sola línea",
   "inicio": "YYYY-MM-DD",
   "plazo": "YYYY-MM-DD",
@@ -1183,7 +1252,7 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
 }`;
 
       const fullResponse = await callAI(
-        "Sos un consultor senior en operaciones y planes de acción para PyMEs. Tus recomendaciones son concretas, ejecutables y profesionales. Devuelves JSON válido sin markdown ni texto extra.",
+        "Sos un consultor senior en operaciones y planes de acción para PyMEs. Construyes planes concretos, ejecutables y profesionales a partir de diagnósticos empresariales previos. Devuelves JSON válido sin markdown ni texto extra.",
         prompt,
         (t) => setIaPlan(t)
       );
@@ -1194,7 +1263,7 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
         planData = JSON.parse(limpiarJSON(fullResponse));
       } catch (e) {
         console.error("Error parseando IA", e);
-        setIaPlan("Error: la IA devolvió un formato inválido. Vuelve a generar el análisis.");
+        setIaPlan("Error: la IA devolvió un formato inválido. Vuelve a generar el plan.");
         setIaLoading(false);
         return;
       }
@@ -1202,18 +1271,22 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
       setGuardandoPlan(true);
 
       try {
-        const analisisInsert = await dbInsert("analisis_empresas", {
-          empresa: empresa.nombre,
-          contenido: planData.analisis || planData.justificacion || "Análisis generado por IA",
-          contexto: JSON.stringify({
-            texto: iaContexto || null,
-            adjuntos
-          }),
-          tipo: "ia"
-        });
+        let analisisIdUsado = analisisBase?.id || null;
 
-        const nuevoAnalisisId = analisisInsert?.[0]?.id || null;
-        if (nuevoAnalisisId) setAnalisisSeleccionado(nuevoAnalisisId);
+        if (!analisisIdUsado) {
+          const analisisInsert = await dbInsert("analisis_empresas", {
+            empresa: empresa.nombre,
+            contenido: planData.analisis || "Análisis generado por IA",
+            contexto: JSON.stringify({
+              texto: iaContexto || null,
+              adjuntos
+            }),
+            tipo: "ia"
+          });
+          analisisIdUsado = analisisInsert?.[0]?.id || null;
+        }
+
+        if (analisisIdUsado) setAnalisisSeleccionado(analisisIdUsado);
 
         await dbInsert("planes_empresas", {
           empresa: empresa.nombre,
@@ -1223,7 +1296,7 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
           estado: planData.estado || "Pendiente",
           tipo: "ia",
           justificacion: planData.justificacion || null,
-          analisis_id: nuevoAnalisisId
+          analisis_id: analisisIdUsado
         });
 
         setIaPlan(JSON.stringify(planData, null, 2));
@@ -1235,7 +1308,7 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
         setIaLoading(false);
       }
     } catch (error) {
-      setIaPlan(`No se pudieron subir los adjuntos: ${error.message}`);
+      setIaPlan(`No se pudo generar el plan: ${error.message}`);
       setIaLoading(false);
     }
   };
@@ -1269,6 +1342,7 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
   const subtabs = [
     { id: "resumen", label: "Resumen" },
     { id: "notas", label: "Notas" },
+    { id: "analisis", label: "Análisis" },
     { id: "dashboard", label: "Dashboard" },
     { id: "planes", label: "Planes" },
     { id: "control", label: "Control" }
@@ -1371,10 +1445,10 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
           <div style={card()}>
             <div style={{ fontWeight: 700, marginBottom: 10, color: empresa.color }}>Accesos rápidos</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {["Abrir notas de la empresa", "Ver dashboard ejecutivo", "Registrar plan de acción", "Actualizar control operativo"].map((item, idx) => (
+              {["Abrir notas de la empresa", "Generar o revisar análisis", "Ver dashboard ejecutivo", "Registrar plan de acción", "Actualizar control operativo"].map((item, idx) => (
                 <InteractiveButton
                   key={idx}
-                  onClick={() => setSubtab(["notas", "dashboard", "planes", "control"][idx])}
+                  onClick={() => setSubtab(["notas", "analisis", "dashboard", "planes", "control"][idx])}
                   accentColor={empresa.color}
                   variant="quick"
                 >
@@ -1387,6 +1461,79 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
       )}
 
       {subtab === "notas" && <NotasEmpresa empresaFija={empresa.nombre} compact />}
+
+
+      {subtab === "analisis" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 14 }}>
+          <div style={card()}>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Generar análisis de la empresa</div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+              Aquí puedes plasmar el diagnóstico que Alejandro relevó en la empresa o lo que el dueño comentó sobre el negocio, sus sectores y sus problemas. El análisis se guarda en Supabase y luego puede usarse como base para generar planes.
+            </div>
+
+            <span style={lbl}>Contexto relevado</span>
+            <textarea
+              style={{ ...inp, minHeight: 140, resize: "vertical", marginBottom: 12 }}
+              value={iaContexto}
+              onChange={(e) => setIaContexto(e.target.value)}
+              placeholder="Ejemplo: problemas de ventas, desorden operativo, fallas en stock, roles poco claros, reclamos del dueño, sectores más afectados, objetivos que quiere lograr..."
+            />
+
+            <AttachmentUploader
+              files={analisisFiles}
+              setFiles={setAnalisisFiles}
+              title="Adjuntos para el análisis"
+              hint="Aquí puedes subir imágenes, reportes o documentos de apoyo. Si no subes nada, el análisis igual se genera con el contexto escrito."
+            />
+
+            <button onClick={generarAnalisisIA} disabled={analisisLoading} style={{ ...btn(empresa.color), width: "100%", opacity: analisisLoading ? 0.6 : 1 }}>
+              {analisisLoading ? "Generando y guardando..." : "🧠 Generar análisis y guardarlo"}
+            </button>
+
+            <AIBox text={analisisTexto} loading={analisisLoading} />
+          </div>
+
+          <div style={card()}>
+            <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Historial de análisis</div>
+
+            {analisisHistorial.length === 0 ? (
+              <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, color: C.muted, fontSize: 13 }}>
+                Todavía no hay análisis guardados para esta empresa.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {analisisHistorial.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      background: analisisSeleccionado === item.id ? `${empresa.color}10` : C.bg,
+                      border: `1px solid ${analisisSeleccionado === item.id ? empresa.color + "55" : C.border}`,
+                      borderRadius: 10,
+                      padding: 12
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={badge(empresa.color)}>Análisis #{item.id}</span>
+                      <span style={{ fontSize: 11, color: C.dim }}>{new Date(item.created_at).toLocaleString("es-AR")}</span>
+                    </div>
+
+                    <div style={{ fontSize: 12, color: C.muted, whiteSpace: "pre-wrap", lineHeight: 1.6, marginBottom: 10 }}>
+                      {String(item.contenido || "").slice(0, 320)}
+                    </div>
+
+                    <button
+                      onClick={() => setAnalisisSeleccionado(item.id)}
+                      style={{ ...btn(empresa.color, analisisSeleccionado !== item.id) }}
+                    >
+                      {analisisSeleccionado === item.id ? "Análisis activo" : "Usar este análisis para el plan"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {subtab === "dashboard" && (
         <div>
@@ -1634,12 +1781,12 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
           <div style={card()}>
             <div style={{ fontWeight: 700, marginBottom: 8, color: empresa.color }}>Generar plan desde análisis</div>
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-              La IA analiza la empresa y guarda automáticamente el plan en Supabase.
+              Primero selecciona un análisis guardado. Luego la IA toma ese diagnóstico como base y genera el plan de acción en Supabase. Si no existe un análisis previo, primero créalo en la pestaña Análisis.
             </div>
 
-            {analisisHistorial.length > 0 && (
+            {analisisHistorial.length > 0 ? (
               <div style={{ marginBottom: 12 }}>
-                <span style={lbl}>Último análisis relacionado</span>
+                <span style={lbl}>Análisis base seleccionado</span>
                 <select
                   style={{ ...sel, width: "100%" }}
                   value={analisisSeleccionado || ""}
@@ -1652,17 +1799,28 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
                   ))}
                 </select>
               </div>
+            ) : (
+              <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, fontSize: 12, color: C.muted, marginBottom: 12 }}>
+                No hay análisis guardados todavía. Primero crea uno en la pestaña Análisis.
+              </div>
             )}
 
-            <span style={lbl}>Contexto adicional</span>
+            <span style={lbl}>Contexto adicional para el plan</span>
             <textarea
               style={{ ...inp, minHeight: 90, resize: "vertical", marginBottom: 12 }}
               value={iaContexto}
               onChange={(e) => setIaContexto(e.target.value)}
-              placeholder="Ej: foco en ventas, reorganización, seguimiento comercial, problemas operativos..."
+              placeholder="Ej: foco en ventas, reorganización, seguimiento comercial, prioridades del dueño, sectores críticos..."
             />
 
-            <button onClick={generarPlanIA} disabled={iaLoading || guardandoPlan} style={{ ...btn(empresa.color), width: "100%", opacity: iaLoading || guardandoPlan ? 0.6 : 1 }}>
+            <AttachmentUploader
+              files={iaFiles}
+              setFiles={setIaFiles}
+              title="Adjuntos opcionales para el plan"
+              hint="Aquí puedes subir soporte extra para el plan. Si no subes nada, el plan igual se genera con el análisis seleccionado y el contexto escrito."
+            />
+
+            <button onClick={generarPlanIA} disabled={iaLoading || guardandoPlan || analisisHistorial.length === 0} style={{ ...btn(empresa.color), width: "100%", opacity: iaLoading || guardandoPlan || analisisHistorial.length === 0 ? 0.6 : 1 }}>
               {iaLoading || guardandoPlan ? "Generando y guardando..." : "✨ Generar plan desde análisis"}
             </button>
 
