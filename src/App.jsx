@@ -1,10 +1,18 @@
 import { useState, useEffect } from "react";
 
+/* =========================
+   01. CONFIG / ENDPOINTS
+========================= */
+
 const SUPABASE_URL = "https://yencfonwqzqbtoicoukf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_QoEI3g_X9PaQdAFCL7rMjA_j2fAHAfx";
 const SUPABASE_FUNCTION_URL = "https://yencfonwqzqbtoicoukf.supabase.co/functions/v1/openai-proxy";
 
 const STORAGE_BUCKET = "ia-archivos";
+
+/* =========================
+   02. STORAGE HELPERS
+========================= */
 
 async function readFileSnippet(file, maxLength = 4000) {
   const textLikeExtensions = [".txt", ".md", ".json", ".csv", ".log", ".html", ".xml"];
@@ -62,6 +70,10 @@ async function uploadFilesToSupabase(files = []) {
   return uploads;
 }
 
+/* =========================
+   03. IA / PROMPTS HELPERS
+========================= */
+
 function buildAdjuntosPrompt(adjuntos = []) {
   if (!adjuntos.length) return "Adjuntos: no se enviaron archivos.";
   return `Adjuntos disponibles:\n${adjuntos
@@ -72,6 +84,10 @@ function buildAdjuntosPrompt(adjuntos = []) {
     })
     .join("\n\n")}`;
 }
+
+/* =========================
+   04. SUPABASE DB HELPERS
+========================= */
 
 async function dbGet(tabla) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${tabla}?order=created_at.desc`, {
@@ -138,6 +154,10 @@ function safeJsonParse(text) {
     return null;
   }
 }
+
+/* =========================
+   05. STATIC DATA / CATALOGS
+========================= */
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -322,6 +342,10 @@ const PLAN_ITEMS = [
   "90 días — Revisión de resultados y ajuste de plan",
 ];
 
+/* =========================
+   06. UI TOKENS / STYLES
+========================= */
+
 const C = {
   bg: "#F7F9FC",
   bgSoft: "#FFFFFF",
@@ -404,6 +428,10 @@ const badge = (color) => ({
   display: "inline-block"
 });
 
+/* =========================
+   07. IA REQUEST LAYER
+========================= */
+
 function limpiarJSON(texto) {
   if (!texto) return "";
   const clean = texto.trim();
@@ -446,6 +474,10 @@ async function callAI(system, userMsg, onChunk, model = "gpt-4o-mini") {
   return text;
 }
 
+
+/* =========================
+   08. SHARED UI COMPONENTS
+========================= */
 
 function AttachmentUploader({ files = [], setFiles, title = "Archivos de apoyo", hint = "Aquí puedes adjuntar imágenes o archivos para dejar contexto asociado a la consulta." }) {
   const handleChange = (e) => {
@@ -653,6 +685,10 @@ function AlertaTATITO() {
   );
 }
 
+
+/* =========================
+   09. MAIN MODULES
+========================= */
 
 function Dashboard({ setTab, onOpenEmpresa }) {
   const [planes, setPlanes] = useState([]);
@@ -929,6 +965,10 @@ function Empresas({ onOpenEmpresa }) {
     </div>
   );
 }
+
+/* =========================
+   10. EMPRESA DETAIL / CORE WORKSPACE
+========================= */
 
 function EmpresaDetalle({ empresaId, onBack }) {
   const empresa = EMPRESAS.find((e) => e.id === empresaId);
@@ -1895,6 +1935,10 @@ Responde SOLO en JSON válido, sin texto extra, con este formato exacto:
   );
 }
 
+/* =========================
+   11. SPECIALIZED MODULES
+========================= */
+
 function Diagnostico() {
   const [aiOut, setAiOut] = useState("");
   const [aiLoad, setAiLoad] = useState(false);
@@ -2844,6 +2888,10 @@ ${buildAdjuntosPrompt(adjuntos)}`, (t) => {
     </div>
   );
 }
+
+/* =========================
+   12. APP SHELL
+========================= */
 
 const TABS = [
   { id: "dashboard", label: "🏠 Inicio" },
