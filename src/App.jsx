@@ -678,6 +678,7 @@ export default function App() {
   const navItems = [
     { label: "Dashboard", icon: "⊞" },
     { label: "Expedientes", icon: "📋" },
+    { label: "Importar Excel", icon: "⬆" },
     { label: "Nuevo expediente", icon: "＋" },
   ];
 
@@ -912,6 +913,95 @@ export default function App() {
                           {col}
                         </div>
                       ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            ) : activeNav === "Importar Excel" ? (
+              <div style={{ display: "grid", gap: 14 }}>
+                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 16, padding: 18 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>Importar archivo Excel</div>
+                  <div style={{ fontSize: 12, color: C.muted, marginTop: 6, maxWidth: 760 }}>
+                    Esta sección queda preparada para la carga del archivo general de expedientes.
+                    La importación masiva se incorporará sobre esta misma vista, respetando la estructura
+                    de Supabase y el control del área técnica.
+                  </div>
+
+                  <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 14 }}>
+                    <div style={{ background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Carga preparada</div>
+                      <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
+                        Ya quedó visible la entrada para subir archivos <strong>.xlsx</strong>, <strong>.xls</strong> o <strong>.csv</strong>.
+                        En esta etapa funciona como módulo base institucional para demostrar avance y dejar lista la integración.
+                      </div>
+
+                      <div style={{ marginTop: 14 }}>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: 132,
+                            borderRadius: 14,
+                            border: `1px dashed ${C.sky}`,
+                            background: "#f0f9ff",
+                            color: C.muted,
+                            fontSize: 13,
+                            fontWeight: 600,
+                            textAlign: "center",
+                            padding: 18,
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} />
+                          Subir archivo Excel
+                          <br />
+                          <span style={{ fontWeight: 400, fontSize: 12, color: C.dim, marginTop: 6 }}>
+                            Módulo visual listo para conectar con la importación real
+                          </span>
+                        </label>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10, marginTop: 14 }}>
+                        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.indigo }}>Origen de carga</div>
+                          <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Excel general de Estela</div>
+                        </div>
+                        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.indigo }}>Edición futura</div>
+                          <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Área técnica</div>
+                        </div>
+                        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.indigo }}>Destino</div>
+                          <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Tabla expedientes</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Campos previstos para el mapeo</div>
+                      <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>
+                        Esta es la estructura del sistema. El Excel después se adaptará a estos campos.
+                      </div>
+                      <div style={{ marginTop: 12, display: "grid", gap: 6, maxHeight: 480, overflowY: "auto", paddingRight: 4 }}>
+                        {EXCEL_TEMPLATE_COLUMNS.map((col) => (
+                          <div
+                            key={col}
+                            style={{
+                              fontSize: 11,
+                              color: C.text,
+                              background: "#f8fafc",
+                              border: `1px solid ${C.border}`,
+                              borderRadius: 8,
+                              padding: "7px 9px",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {col}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
