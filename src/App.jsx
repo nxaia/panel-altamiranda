@@ -56,7 +56,6 @@ const EXCEL_TEMPLATE_COLUMNS = [
   "localidad",
   "barrio",
   "estado",
-  "subestado",
   "area_actual",
   "responsable_id",
   "documentacion",
@@ -169,6 +168,67 @@ function truncateText(value, max = 55) {
   return text.length > max ? `${text.slice(0, max)}...` : text;
 }
 
+
+const ACCESS_USERS = [
+  { key: "carlos_chauvet", nombre: "Carlos Chauvet", rol: "Área técnica" },
+  { key: "estela_palacios", nombre: "Estela Palacios", rol: "Directora" },
+];
+
+const ACCESS_ALLOWED_NAMES = ACCESS_USERS.map((item) => item.nombre.toLowerCase());
+
+function normalizeName(value) {
+  return cleanText(value).toLowerCase();
+}
+
+function getStoredCurrentUser() {
+  try {
+    const raw = localStorage.getItem("cig_current_user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getStoredAccessHistory() {
+  try {
+    const raw = localStorage.getItem("cig_access_history");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCurrentUser(user) {
+  localStorage.setItem("cig_current_user", JSON.stringify(user));
+}
+
+function registerAccessHistory(entry) {
+  const history = [entry, ...getStoredAccessHistory()].slice(0, 12);
+  localStorage.setItem("cig_access_history", JSON.stringify(history));
+  return history;
+}
+
+async function registerAccessInSupabase(entry) {
+  if (!supabase) return { ok: false, reason: "Supabase no disponible" };
+
+  const payload = {
+    usuario_nombre: entry.nombre,
+    usuario_rol: entry.rol,
+    usuario_email: entry.email || null,
+    usuario_id: entry.id || null,
+    metodo_ingreso: "seleccion_sin_password",
+    fecha_ingreso: entry.ingreso,
+  };
+
+  const { error } = await supabase.from("panel_accesos").insert(payload);
+
+  if (error) {
+    return { ok: false, reason: error.message };
+  }
+
+  return { ok: true };
+}
+
 function normalizeExpediente(row) {
   const numero = row.numero_expediente || row.num || `EXP-${row.id}`;
   const zona = splitBarrio(row.barrio || "");
@@ -184,7 +244,6 @@ function normalizeExpediente(row) {
     localidad: zona.localidad || "—",
     barrioNombre: zona.barrio || "—",
     estado: row.estado || "pendiente",
-    sub: row.subestado || "—",
     area: row.area_actual || "—",
     resp: row.responsable_id || "",
     doc: row.documentacion || "incompleta",
@@ -309,8 +368,7 @@ function ModalExpediente({ item, usersMap, onClose }) {
             <div><div style={labelStyle}>Localidad</div><div>{zona.localidad || "—"}</div></div>
             <div><div style={labelStyle}>Barrio</div><div>{zona.barrio || "—"}</div></div>
             <div><div style={labelStyle}>Estado</div><div><Badge estado={item.estado} /></div></div>
-            <div><div style={labelStyle}>Subestado</div><div>{item.sub}</div></div>
-            <div><div style={labelStyle}>Área</div><div>{item.area}</div></div>
+              <div><div style={labelStyle}>Área</div><div>{item.area}</div></div>
             <div><div style={labelStyle}>Responsable</div><div>{usersMap[item.resp] || "—"}</div></div>
             <div><div style={labelStyle}>Documentación</div><div><Doc doc={item.doc} /></div></div>
             <div><div style={labelStyle}>Prioridad</div><div><Priority prioridad={item.prio} /></div></div>
@@ -507,10 +565,29 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [showIntro, setShowIntro] = useState(true);
+  const [currentUser, setCurrentUser] = useState(() => getStoredCurrentUser());
+  const [accessHistory, setAccessHistory] = useState(() => getStoredAccessHistory());
+  const [selectedAccessKey, setSelectedAccessKey] = useState(() => getStoredCurrentUser()?.key || "");
+  const [accessSaving, setAccessSaving] = useState(false);
 
   const fechaActual = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" });
   const usersMap = useMemo(() => buildUsersMap(users), [users]);
+  const isTecnico = currentUser?.key === "carlos_chauvet";
+  const currentUserLabel = currentUser ? `${currentUser.nombre} · ${currentUser.rol}` : "Sin ingreso";
+
+  const availableAccessUsers = useMemo(() => {
+    const usersByName = new Map(users.map((user) => [normalizeName(user.nombre), user]));
+
+    return ACCESS_USERS.map((item) => {
+      const matched = usersByName.get(normalizeName(item.nombre));
+      return {
+        ...item,
+        id: matched?.id || null,
+        email: matched?.email || "",
+        rol: matched?.rol || item.rol,
+      };
+    }).filter((item) => ACCESS_ALLOWED_NAMES.includes(normalizeName(item.nombre)));
+  }, [users]);
 
   const barriosDisponibles = useMemo(() => {
     const fromConfig = fLocalidad ? (BARRIOS[fLocalidad] || []).filter((b) => b !== "Otro") : [];
@@ -536,8 +613,6 @@ export default function App() {
 
     if (vista === "pendiente") d = d.filter((e) => e.estado === "pendiente" || e.estado === "pendiente_documentacion");
     else if (vista === "catastro") d = d.filter((e) => e.area === "Catastro");
-    else if (vista === "sin_planos") d = d.filter((e) => e.sub === "Sin planos");
-    else if (vista === "relevamiento") d = d.filter((e) => e.sub === "Relevamiento");
     else if (vista === "listo") d = d.filter((e) => e.estado === "listo");
     else if (vista === "atrasados") d = d.filter((e) => e.dias >= 14);
 
@@ -554,7 +629,6 @@ export default function App() {
           usersMap[e.resp] || "",
           e.observaciones,
           e.proximaAccion,
-          e.sub,
           e.area,
         ].some((field) => toSearchable(field).includes(q))
       );
@@ -647,7 +721,6 @@ export default function App() {
       dni: form.dni.trim(),
       barrio: composeBarrio(form.localidad, form.barrio),
       estado: form.estado,
-      subestado: "Nuevo",
       area_actual: form.area,
       responsable_id: form.resp || null,
       documentacion: "incompleta",
@@ -675,6 +748,42 @@ export default function App() {
     setSaving(false);
   }
 
+
+  async function handleAccess() {
+    const selected = availableAccessUsers.find((item) => item.key === selectedAccessKey);
+    if (!selected) {
+      setError("Seleccioná un usuario para ingresar.");
+      return;
+    }
+
+    setAccessSaving(true);
+    setError("");
+    setNotice("");
+
+    const sessionUser = {
+      ...selected,
+      ingreso: new Date().toISOString(),
+    };
+
+    saveCurrentUser(sessionUser);
+    setCurrentUser(sessionUser);
+    setAccessHistory(registerAccessHistory(sessionUser));
+
+    const accessResult = await registerAccessInSupabase(sessionUser);
+    if (!accessResult.ok) {
+      setNotice(`Ingreso registrado localmente. Historial central pendiente: ${accessResult.reason}`);
+    }
+
+    setAccessSaving(false);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("cig_current_user");
+    setCurrentUser(null);
+    setSelectedAccessKey("");
+    setActiveNav("Dashboard");
+  }
+
   const navItems = [
     { label: "Dashboard", icon: "⊞" },
     { label: "Expedientes", icon: "📋" },
@@ -682,7 +791,7 @@ export default function App() {
     { label: "Nuevo expediente", icon: "＋" },
   ];
 
-  if (showIntro) {
+  if (!currentUser) {
     return (
       <div
         style={{
@@ -699,7 +808,7 @@ export default function App() {
         <div
           style={{
             width: "100%",
-            maxWidth: 760,
+            maxWidth: 860,
             background: "#ffffff",
             border: `1px solid ${C.border}`,
             borderRadius: 28,
@@ -707,27 +816,23 @@ export default function App() {
             overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              height: 10,
-              background: "linear-gradient(90deg,#0ea5e9,#2563eb,#14b8a6)",
-            }}
-          />
+          <div style={{ height: 10, background: "linear-gradient(90deg,#0ea5e9,#2563eb,#14b8a6)" }} />
 
           <div
             style={{
-              padding: "44px 32px 38px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              padding: "38px 32px 34px",
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              justifyItems: "center",
               textAlign: "center",
+              gap: 18,
             }}
           >
             <div
               style={{
-                width: 182,
-                height: 182,
-                borderRadius: 24,
+                width: 186,
+                height: 186,
+                borderRadius: 26,
                 background: "#f8fafc",
                 border: `1px solid ${C.border}`,
                 display: "flex",
@@ -740,37 +845,76 @@ export default function App() {
               <img
                 src="/logo-icono.png"
                 alt="Logo Municipalidad Banda del Río Salí"
-                style={{ width: "112px", height: "112px", objectFit: "contain" }}
+                style={{ width: 122, height: 122, objectFit: "contain" }}
               />
             </div>
 
-            <div style={{ marginTop: 26, fontSize: 14, color: C.muted, letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 700 }}>
+            <div style={{ fontSize: 14, color: C.muted, letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 700 }}>
               Municipalidad de
             </div>
-            <div style={{ fontSize: 34, lineHeight: 1.1, fontWeight: 800, color: C.slate, marginTop: 6 }}>
+            <div style={{ fontSize: 34, lineHeight: 1.1, fontWeight: 800, color: C.slate, marginTop: -6 }}>
               Banda del Río Salí
             </div>
-            <div style={{ width: 88, height: 4, borderRadius: 999, background: "linear-gradient(90deg,#0ea5e9,#14b8a6)", marginTop: 22 }} />
-            <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginTop: 22 }}>
+            <div style={{ width: 88, height: 4, borderRadius: 999, background: "linear-gradient(90deg,#0ea5e9,#14b8a6)" }} />
+            <div style={{ fontSize: 22, fontWeight: 700, color: C.text }}>
               Dirección de Regularización Dominial
             </div>
-            <div style={{ fontSize: 14, color: C.muted, maxWidth: 520, lineHeight: 1.6, marginTop: 14 }}>
-              Sistema interno de gestión de expedientes para seguimiento operativo,
-              control por áreas y organización del proceso de regularización dominial.
+            <div style={{ fontSize: 14, color: C.muted, maxWidth: 560, lineHeight: 1.6 }}>
+              Acceso institucional al panel operativo. Por el momento el ingreso se registra por selección de usuario,
+              sin contraseña.
             </div>
 
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", marginTop: 28 }}>
+            <div style={{ width: "100%", maxWidth: 620, display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 14, marginTop: 8 }}>
+              {availableAccessUsers.map((item) => {
+                const active = selectedAccessKey === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => setSelectedAccessKey(item.key)}
+                    style={{
+                      border: active ? `2px solid ${C.sky}` : `1px solid ${C.border}`,
+                      background: active ? "#f0f9ff" : "#fff",
+                      borderRadius: 18,
+                      padding: "18px 16px",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      boxShadow: active ? "0 10px 22px rgba(14,165,233,.12)" : "none",
+                    }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{item.nombre}</div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>{item.rol}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {availableAccessUsers.length === 0 ? (
+              <div style={{ width: "100%", maxWidth: 620, background: "#fff7ed", color: "#9a3412", border: "1px solid #fed7aa", borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>
+                No hay usuarios habilitados para ingresar. Revisá la tabla <strong>usuarios</strong> en Supabase.
+              </div>
+            ) : null}
+
+            {error ? (
+              <div style={{ width: "100%", maxWidth: 620, background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>
+                {error}
+              </div>
+            ) : null}
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
               <button
-                onClick={() => setShowIntro(false)}
+                onClick={handleAccess}
+                disabled={!availableAccessUsers.length || accessSaving}
                 style={{
                   ...btnPrimary,
                   padding: "12px 22px",
                   borderRadius: 12,
                   fontSize: 14,
                   boxShadow: "0 14px 28px rgba(14,165,233,.20)",
+                  opacity: !availableAccessUsers.length || accessSaving ? 0.7 : 1,
+                  cursor: !availableAccessUsers.length || accessSaving ? "not-allowed" : "pointer",
                 }}
               >
-                Ingresar al panel
+                {accessSaving ? "Ingresando..." : "Ingresar al panel"}
               </button>
             </div>
           </div>
@@ -856,6 +1000,8 @@ export default function App() {
               <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>Dirección de Regularización Dominial • Base conectada a Supabase</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <div style={{ padding: "8px 12px", borderRadius: 999, background: "#f8fafc", border: `1px solid ${C.border}`, fontSize: 12, color: C.text, fontWeight: 600 }}>{currentUserLabel}</div>
+              <button onClick={handleLogout} style={btnGhost}>Salir</button>
               <div style={{ fontSize: 13, color: C.muted }}>{fechaActual}</div>
               <button onClick={() => loadInitialData(true)} style={btnGhost}>{refreshing ? "Actualizando..." : "Actualizar"}</button>
               <button onClick={() => setNuevoOpen(true)} style={btnPrimary}>+ Nuevo expediente</button>
@@ -879,7 +1025,30 @@ export default function App() {
                   <SummaryCard label="Atrasados (+14d)" value={stats.atrasados} sub="Requieren revisión" />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1.2fr .8fr", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                  <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>Ingreso actual</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginTop: 12 }}>{currentUser?.nombre}</div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>{currentUser?.rol}</div>
+                    <div style={{ fontSize: 12, color: C.dim, marginTop: 10 }}>Último ingreso: {formatDate(currentUser?.ingreso, true)}</div>
+                    <div style={{ fontSize: 12, color: C.dim, marginTop: 6 }}>Perfil técnico: {isTecnico ? "Sí" : "No"}</div>
+                  </div>
+
+                  <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>Últimos ingresos registrados (navegador)</div>
+                    <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                      {accessHistory.length === 0 ? (
+                        <div style={{ fontSize: 12, color: C.muted }}>Todavía no hay ingresos registrados.</div>
+                      ) : accessHistory.slice(0, 4).map((entry, index) => (
+                        <div key={`${entry.key}-${entry.ingreso}-${index}`} style={{ background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 10, padding: 10 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{entry.nombre}</div>
+                          <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{entry.rol}</div>
+                          <div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>{formatDate(entry.ingreso, true)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>Panel listo para carga real</div>
                     <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>
@@ -927,6 +1096,9 @@ export default function App() {
                     La importación masiva se incorporará sobre esta misma vista, respetando la estructura
                     de Supabase y el control del área técnica.
                   </div>
+                  <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 999, background: isTecnico ? "#ecfdf5" : "#fff7ed", border: `1px solid ${isTecnico ? "#bbf7d0" : "#fed7aa"}`, fontSize: 12, color: isTecnico ? "#166534" : "#9a3412", fontWeight: 600 }}>
+                    Perfil actual: {currentUser?.nombre} · {isTecnico ? "Acceso técnico habilitado" : "Solo visualización"}
+                  </div>
 
                   <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 14 }}>
                     <div style={{ background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
@@ -954,8 +1126,8 @@ export default function App() {
                             boxSizing: "border-box",
                           }}
                         >
-                          <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} />
-                          Subir archivo Excel
+                          <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} disabled={!isTecnico} />
+                          {isTecnico ? "Subir archivo Excel" : "Carga disponible para área técnica"}
                           <br />
                           <span style={{ fontWeight: 400, fontSize: 12, color: C.dim, marginTop: 6 }}>
                             Módulo visual listo para conectar con la importación real
@@ -1013,8 +1185,6 @@ export default function App() {
                     ["todos", "Todos"],
                     ["pendiente", "Pendientes"],
                     ["catastro", "En catastro"],
-                    ["sin_planos", "Sin planos"],
-                    ["relevamiento", "Relevamiento"],
                     ["listo", "Listos p/ escriturar"],
                     ["atrasados", "Atrasados"],
                   ].map(([id, label]) => (
@@ -1103,7 +1273,7 @@ export default function App() {
                     <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1450, fontSize: 12 }}>
                       <thead>
                         <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
-                          {["N° Expediente", "Titular / DNI", "Localidad / Barrio", "Estado", "Subestado", "Área", "Responsable", "Doc.", "Días s/mov.", "Últ. actualización", "Prioridad", "Próx. acción", "Observaciones", ""].map((h) => (
+                          {["N° Expediente", "Titular / DNI", "Localidad / Barrio", "Estado", "Área", "Responsable", "Doc.", "Días s/mov.", "Últ. actualización", "Prioridad", "Próx. acción", "Observaciones", ""].map((h) => (
                             <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: ".05em" }}>
                               {h}
                             </th>
@@ -1114,7 +1284,7 @@ export default function App() {
                       <tbody>
                         {slice.length === 0 ? (
                           <tr>
-                            <td colSpan={14}>
+                            <td colSpan={13}>
                               <EmptyBlock title="No se encontraron expedientes" text="Ajusta los filtros o carga el primer expediente." />
                             </td>
                           </tr>
@@ -1134,7 +1304,6 @@ export default function App() {
                                 <div style={{ marginTop: 2 }}>{zona.barrio || "—"}</div>
                               </td>
                               <td style={{ padding: "10px 12px" }}><Badge estado={exp.estado} /></td>
-                              <td style={{ padding: "10px 12px", color: C.muted, fontSize: 11 }}>{exp.sub}</td>
                               <td style={{ padding: "10px 12px" }}>{exp.area}</td>
                               <td style={{ padding: "10px 12px", fontSize: 11, fontWeight: 700 }}>{usersMap[exp.resp] || "—"}</td>
                               <td style={{ padding: "10px 12px" }}><Doc doc={exp.doc} /></td>
