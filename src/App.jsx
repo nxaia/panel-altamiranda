@@ -1327,19 +1327,19 @@ function ExpedienteRow({ exp, users, usersMap, onSaveField, onOpen, onUploadPlan
         <div style={{ color: C.dim, fontSize: 11, marginTop: 6 }}>{draft.origenCarga}</div>
         <div style={{ marginTop: 8 }}><CompletenessBadge expediente={draft} attachments={planos} /></div>
       </td>
-      <td style={{ padding: "8px 8px", minWidth: 170 }}><input value={draft.titular} disabled={!canEdit} onChange={(e) => updateField("titular", e.target.value)} style={compactInputStyle} /></td>
-      <td style={{ padding: "8px 8px", minWidth: 100 }}><input value={draft.dni} disabled={!canEdit} onChange={(e) => updateField("dni", e.target.value)} style={compactInputStyle} /></td>
-      <td style={{ padding: "8px 8px", minWidth: 128 }}><input value={draft.telefono || ""} disabled={!canEdit} onChange={(e) => updateField("telefono", e.target.value)} style={compactInputStyle} /></td>
-      <td style={{ padding: "8px 8px", minWidth: 124 }}><select value={draft.estadoCivil} disabled={!canEdit} onChange={(e) => updateField("estadoCivil", e.target.value)} style={compactInputStyle}>{ESTADOS_CIVILES.map((x) => <option key={x} value={x}>{x || "Seleccionar"}</option>)}</select></td>
-      <td style={{ padding: "8px 8px", minWidth: 150 }}>
+      <td style={{ padding: "6px 6px", minWidth: 150 }}><input value={draft.titular} disabled={!canEdit} onChange={(e) => updateField("titular", e.target.value)} style={compactInputStyle} /></td>
+      <td style={{ padding: "6px 6px", minWidth: 92 }}><input value={draft.dni} disabled={!canEdit} onChange={(e) => updateField("dni", e.target.value)} style={compactInputStyle} /></td>
+      <td style={{ padding: "6px 6px", minWidth: 120 }}><input value={draft.telefono || ""} disabled={!canEdit} onChange={(e) => updateField("telefono", e.target.value)} style={compactInputStyle} /></td>
+      <td style={{ padding: "6px 6px", minWidth: 112 }}><select value={draft.estadoCivil} disabled={!canEdit} onChange={(e) => updateField("estadoCivil", e.target.value)} style={compactInputStyle}>{ESTADOS_CIVILES.map((x) => <option key={x} value={x}>{x || "Seleccionar"}</option>)}</select></td>
+      <td style={{ padding: "6px 6px", minWidth: 128 }}>
         <select value={zona.localidad || "Banda del Río Salí"} disabled={!canEdit} onChange={(e) => updateZona("localidad", e.target.value)} style={{ ...compactInputStyle, marginBottom: 8 }}>{LOCALIDADES.map((loc) => <option key={loc} value={loc}>{loc}</option>)}</select>
         <select value={zona.barrio || ""} disabled={!canEdit} onChange={(e) => updateZona("barrio", e.target.value)} style={compactInputStyle}>
           <option value="">Barrio</option>
           {barrios.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
       </td>
-      <td style={{ padding: "8px 8px", minWidth: 100 }}><input value={draft.padronNumero} disabled={!canEdit} onChange={(e) => updateField("padronNumero", e.target.value)} style={compactInputStyle} /></td>
-      <td style={{ padding: "8px 8px", minWidth: 165 }}>
+      <td style={{ padding: "6px 6px", minWidth: 90 }}><input value={draft.padronNumero} disabled={!canEdit} onChange={(e) => updateField("padronNumero", e.target.value)} style={compactInputStyle} /></td>
+      <td style={{ padding: "6px 6px", minWidth: 150 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {canEdit ? (
             <label style={{ ...btnGhost, textAlign: "center", padding: "8px 10px", fontSize: 11, color: uploadingPlano ? C.dim : C.text, cursor: uploadingPlano ? "not-allowed" : "pointer" }}>
@@ -1386,11 +1386,11 @@ function ExpedienteRow({ exp, users, usersMap, onSaveField, onOpen, onUploadPlan
           ) : <span style={{ fontSize: 11, color: C.dim }}>Sin archivo</span>}
         </div>
       </td>
-      <td style={{ padding: "8px 8px", minWidth: 126 }}><select value={draft.estado} disabled={!canEdit} onChange={(e) => updateField("estado", e.target.value)} style={getEstadoSelectStyle(draft.estado)}>{Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></td>
-      <td style={{ padding: "8px 8px", minWidth: 112 }}><select value={draft.area} disabled={!canEdit} onChange={(e) => updateField("area", e.target.value)} style={compactInputStyle}>{AREAS.filter(Boolean).map((a) => <option key={a} value={a}>{a}</option>)}</select></td>
-      <td style={{ padding: "8px 8px", minWidth: 128 }}><select value={draft.resp} disabled={!canEdit} onChange={(e) => updateField("resp", e.target.value)} style={compactInputStyle}><option value="">Responsable</option>{users.map((user) => <option key={user.id} value={user.id}>{user.nombre}</option>)}</select></td>
-      <td style={{ padding: "8px 8px", minWidth: 170 }}><textarea value={draft.notas} disabled={!canEdit} onChange={(e) => updateField("notas", e.target.value)} rows={2} style={{ ...compactInputStyle, resize: "vertical", minHeight: 54 }} /></td>
-      <td style={{ padding: "8px 8px", minWidth: 100 }}>
+      <td style={{ padding: "6px 6px", minWidth: 114 }}><select value={draft.estado} disabled={!canEdit} onChange={(e) => updateField("estado", e.target.value)} style={getEstadoSelectStyle(draft.estado)}>{Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></td>
+      <td style={{ padding: "6px 6px", minWidth: 102 }}><select value={draft.area} disabled={!canEdit} onChange={(e) => updateField("area", e.target.value)} style={compactInputStyle}>{AREAS.filter(Boolean).map((a) => <option key={a} value={a}>{a}</option>)}</select></td>
+      <td style={{ padding: "6px 6px", minWidth: 118 }}><select value={draft.resp} disabled={!canEdit} onChange={(e) => updateField("resp", e.target.value)} style={compactInputStyle}><option value="">Responsable</option>{users.map((user) => <option key={user.id} value={user.id}>{user.nombre}</option>)}</select></td>
+      <td style={{ padding: "6px 6px", minWidth: 150 }}><textarea value={draft.notas} disabled={!canEdit} onChange={(e) => updateField("notas", e.target.value)} rows={2} style={{ ...compactInputStyle, resize: "vertical", minHeight: 50 }} /></td>
+      <td style={{ padding: "6px 6px", minWidth: 92 }}>
         <div style={{ display: "grid", gap: 8 }}>
           <button onClick={() => onOpen(draft)} style={{ ...btnPrimary, padding: "6px 10px", fontSize: 11 }}>Ver</button>
           {canEdit ? <button onClick={() => onDelete(draft)} style={{ ...btnGhost, padding: "6px 10px", fontSize: 11, color: C.red, borderColor: "#fecaca" }}>Eliminar</button> : null}
@@ -2209,7 +2209,7 @@ export default function App() {
   return (
     <div style={{ margin: 0, fontFamily: "Segoe UI, sans-serif", background: C.bg, color: C.text, minHeight: "100vh" }}>
       <div style={{ display: "flex", minHeight: "100vh" }}>
-        <aside style={{ width: sidebarOpen ? 196 : 82, background: "#fff", borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
+        <aside style={{ width: sidebarOpen ? 182 : 74, background: "#fff", borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
           <div style={{ padding: "18px 12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "center" }}>
             <div style={{ width: sidebarOpen ? 88 : 56, height: sidebarOpen ? 88 : 56, borderRadius: sidebarOpen ? 22 : 16, background: "#fff", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 30px rgba(15,23,42,.06)" }}>
               <img src="/logo-icono.png" alt="Municipio" style={{ width: sidebarOpen ? 68 : 40, height: sidebarOpen ? 68 : 40, objectFit: "contain" }} />
@@ -2235,7 +2235,7 @@ export default function App() {
         </aside>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <header style={{ background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <header style={{ background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "12px clamp(14px, 1.8vw, 24px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700 }}>{activeNav}</div>
               <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>Dirección de Regularización Dominial • Base conectada a Supabase</div>
@@ -2249,7 +2249,7 @@ export default function App() {
             </div>
           </header>
 
-          <main style={{ flex: 1, padding: "20px 24px", maxWidth: 1500, width: "100%", boxSizing: "border-box" }}>
+          <main style={{ flex: 1, padding: "16px clamp(12px, 1.6vw, 24px)", width: "100%", maxWidth: "none", boxSizing: "border-box" }}>
             {error ? <div style={{ marginBottom: 16, background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>{error}</div> : null}
             {notice ? <div style={{ marginBottom: 16, background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>{notice}</div> : null}
             {accessSyncStyle ? <div style={{ ...accessSyncStyle, marginBottom: 16, borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>{accessSyncStatus.text}</div> : null}
@@ -2259,7 +2259,7 @@ export default function App() {
               <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}` }}><EmptyBlock title="Cargando datos del sistema" text="Esperando respuesta de Supabase para usuarios y expedientes." /></div>
             ) : activeNav === "Dashboard" ? (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
                   {[["Expedientes únicos", stats.total, "Mostrados en el panel"], ["Completos", stats.completos, "Con datos y adjuntos"], ["En proceso", stats.proceso, "Seguimiento activo"], ["Casos críticos", stats.criticos, "Prioridad crítica"], ["Atrasados (+14d)", stats.atrasados, "Requieren revisión"]].map(([label, value, note]) => (
                     <div key={label} style={{ background: "#fff", border: `1px solid ${C.border}`, padding: "14px 18px", borderRadius: 16 }}>
                       <div style={{ fontSize: 11, color: C.muted }}>{label}</div>
@@ -2268,7 +2268,7 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.2fr 1fr", gap: 14, marginTop: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14, marginTop: 14 }}>
                   <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 16, padding: 18 }}>
                     <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>Ingreso actual</div>
                     <div style={{ marginTop: 12, fontSize: 18, fontWeight: 800 }}>{activeUser.nombre}</div>
@@ -2283,7 +2283,7 @@ export default function App() {
                   <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 16, padding: 18 }}>
                     <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>Importación masiva lista</div>
                     <div style={{ marginTop: 10, color: C.muted, fontSize: 13, lineHeight: 1.55 }}>Ya podés subir varios Excel desde el panel. El barrio se toma del nombre del archivo y la carga va directo a Supabase.</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 16 }}>
                       <div style={{ background: C.softBg, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14 }}><div style={{ fontWeight: 700, fontSize: 13, color: C.indigo }}>Campos nuevos</div><div style={{ marginTop: 10, fontSize: 13, color: C.muted, lineHeight: 1.7 }}>estado_civil<br />telefono<br />padron_numero<br />plano_url<br />notas</div></div>
                       <div style={{ background: C.softBg, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14 }}><div style={{ fontWeight: 700, fontSize: 13, color: C.indigo }}>Cobertura actual</div><div style={{ marginTop: 10, fontSize: 13, color: C.muted, lineHeight: 1.7 }}>Con plano: {data.filter((d) => (planosByExpediente[d.id] || []).length > 0 || cleanText(d.planoUrl)).length}<br />Con padrón: {data.filter((d) => cleanText(d.padronNumero)).length}<br />Con estado civil: {data.filter((d) => cleanText(d.estadoCivil)).length}<br />Usuarios cargados: {users.length}</div></div>
                     </div>
@@ -2294,7 +2294,7 @@ export default function App() {
               <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, padding: 22 }}>
                 <div style={{ fontSize: 18, fontWeight: 800, color: C.slate }}>Importar archivos Excel</div>
                 <div style={{ marginTop: 8, color: C.muted, fontSize: 13, lineHeight: 1.55 }}>Podés subir varios archivos .xlsx o .xls. El sistema toma el barrio desde el nombre del archivo y carga directo a Supabase. Los DNI repetidos se ignoran automáticamente.</div>
-                <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1.25fr 1fr", gap: 16 }}>
+                <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
                   <div style={{ border: `1px dashed ${C.border}`, borderRadius: 16, padding: 20, background: "#f8fafc" }}>
                     <div style={{ fontWeight: 700, color: C.slate }}>Carga directa</div>
                     <div style={{ marginTop: 8, color: C.muted, fontSize: 13, lineHeight: 1.65 }}>1. Seleccionás varios Excel<br />2. El sistema detecta columnas útiles<br />3. Limpia datos<br />4. Inserta todo en Supabase sin vista previa</div>
@@ -2331,7 +2331,7 @@ export default function App() {
                       </div>
                       <button onClick={() => { setSearch(""); setFEstado(""); setFArea(""); setFPrioridad(""); setFBarrio(""); setFCompletitud(""); setPage(1); }} style={btnGhost}>Limpiar filtros</button>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 8 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 8 }}>
                       <select value={fEstado} onChange={(e) => { setFEstado(e.target.value); setPage(1); }} style={inputStyle}><option value="">Todos los estados</option>{Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
                       <select value={fArea} onChange={(e) => { setFArea(e.target.value); setPage(1); }} style={inputStyle}><option value="">Todas las áreas</option>{AREAS.filter(Boolean).map((a) => <option key={a} value={a}>{a}</option>)}</select>
                       <select value={fBarrio} onChange={(e) => { setFBarrio(e.target.value); setPage(1); }} style={inputStyle}>
@@ -2376,11 +2376,11 @@ export default function App() {
                     ) : null}
                   </div>
 
-                  <div style={{ overflow: "auto", maxHeight: "calc(100vh - 310px)" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1720, fontSize: 11 }}>
+                  <div style={{ overflow: "auto", maxHeight: "calc(100vh - 265px)", width: "100%" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1490, fontSize: 11 }}>
                       <thead>
                         <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#fafafa", position: "sticky", top: 0, zIndex: 2 }}>
-                          {["✓", "N° Expediente", "Titular", "DNI", "Contacto", "Estado civil", "Barrio", "N° de padrón", "Archivos", "Estado", "Área", "Responsable", "Notas", "Acciones"].map((h) => <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: ".05em", background: "#fafafa" }}>{h}</th>)}
+                          {["✓", "N° Expediente", "Titular", "DNI", "Contacto", "Estado civil", "Barrio", "N° de padrón", "Archivos", "Estado", "Área", "Responsable", "Notas", "Acciones"].map((h) => <th key={h} style={{ padding: "7px 8px", textAlign: "left", fontSize: 10, fontWeight: 700, color: C.dim, textTransform: "uppercase", letterSpacing: ".05em", background: "#fafafa" }}>{h}</th>)}
                         </tr>
                       </thead>
                       <tbody>
