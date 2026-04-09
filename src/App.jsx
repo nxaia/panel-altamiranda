@@ -331,17 +331,6 @@ function buildBarrioFilterOptions() {
   }));
 }
 
-function getEstadoSelectStyle(estado) {
-  const current = ESTADOS[estado] || ESTADOS.pendiente;
-  return {
-    ...compactInputStyle,
-    background: current.bg,
-    color: current.color,
-    border: `1px solid ${current.border}`,
-    fontWeight: 700,
-  };
-}
-
 function getAttachmentLabel(fileName = "", mimeType = "") {
   const ext = getFileExtension(fileName);
   if (["jpg", "jpeg", "png", "webp"].includes(ext) || String(mimeType).startsWith("image/")) return "Imagen";
@@ -357,34 +346,57 @@ function isPreviewableAttachment(fileName = "", mimeType = "") {
 }
 
 function getExpedienteCompleteness(expediente, attachments = []) {
-  const checks = [
-    cleanText(expediente?.titular),
-    cleanText(expediente?.dni),
-    cleanText(expediente?.telefono),
-    cleanText(expediente?.barrio),
-    cleanText(expediente?.estadoCivil),
-    cleanText(expediente?.padronNumero),
-    cleanText(expediente?.estado),
-    cleanText(expediente?.area),
-    cleanText(expediente?.resp),
-    cleanText(expediente?.notas),
+  const scoreMap = [
+    { ok: cleanText(expediente?.num), weight: 1 },
+    { ok: cleanText(expediente?.titular), weight: 1 },
+    { ok: cleanText(expediente?.dni), weight: 1 },
+    { ok: cleanText(expediente?.telefono), weight: 1 },
+    { ok: cleanText(expediente?.barrio), weight: 1 },
+    { ok: cleanText(expediente?.estadoCivil), weight: 1 },
+    { ok: cleanText(expediente?.padronNumero), weight: 1 },
+    { ok: cleanText(expediente?.estado), weight: 1 },
+    { ok: cleanText(expediente?.area), weight: 1 },
+    { ok: cleanText(expediente?.resp), weight: 1 },
+    { ok: cleanText(expediente?.notas) || cleanText(expediente?.observaciones), weight: 1 },
+    { ok: attachments.length > 0, weight: 2 },
   ];
 
-  const completed = checks.filter(Boolean).length + (attachments.length > 0 ? 1 : 0);
-  const total = checks.length + 1;
+  const completed = scoreMap.reduce((acc, item) => acc + (item.ok ? item.weight : 0), 0);
+  const total = scoreMap.reduce((acc, item) => acc + item.weight, 0);
   const percent = Math.round((completed / total) * 100);
 
   let level = "bajo";
-  let label = "Básico";
-  if (percent >= 85) {
+  let label = "Bajo";
+  if (percent >= 75) {
     level = "alto";
-    label = "Completo";
-  } else if (percent >= 55) {
+    label = "Alto";
+  } else if (percent >= 45) {
     level = "medio";
     label = "Intermedio";
   }
 
   return { completed, total, percent, level, label };
+}
+
+function getExpedienteWarnings(expediente, attachments = []) {
+  const warnings = [];
+  if (expediente?.estado === "listo" && attachments.length === 0) warnings.push("Está marcado como listo, pero no tiene archivos adjuntos.");
+  if (cleanText(expediente?.dni) && !cleanText(expediente?.titular)) warnings.push("Tiene DNI cargado, pero falta el nombre del titular.");
+  if (cleanText(expediente?.padronNumero) && !cleanText(expediente?.barrio)) warnings.push("Tiene padrón cargado, pero falta barrio o localidad.");
+  if (["en_proceso", "revision_legal", "listo"].includes(expediente?.estado) && !cleanText(expediente?.resp)) warnings.push("El estado actual sugiere asignar un responsable.");
+  if (expediente?.estado === "revision_legal" && !cleanText(expediente?.padronNumero)) warnings.push("Revisión legal sin padrón cargado.");
+  return warnings;
+}
+
+function getEstadoSelectStyle(estado) {
+  const current = ESTADOS[estado] || ESTADOS.pendiente;
+  return {
+    ...compactInputStyle,
+    background: current.bg,
+    color: current.color,
+    borderColor: current.border,
+    fontWeight: 700,
+  };
 }
 
 function CompletenessBadge({ expediente, attachments = [] }) {
@@ -977,7 +989,7 @@ function LoginScreen({ selectedUserId, onSelectUser, onIngresar, loginLoading, l
   );
 }
 
-function ModalExpediente({ item, users, usersMap, onClose, onSaveField, savingField, onUploadPlano, onDeletePlano, uploadingPlano, deletingPlanoId, canEdit, onDelete, planos = [] }) {
+function ModalExpediente({ item, users, usersMap, onClose, onSaveField, savingField, onUploadPlano, onDeletePlano, uploadingPlano, deletingPlanoId, canEdit, onDelete, planos = [], onNext, modalIndex = 0, modalTotal = 0 }) {
   const [draft, setDraft] = useState(item || null);
   const [previewFileId, setPreviewFileId] = useState("");
 
@@ -991,9 +1003,10 @@ function ModalExpediente({ item, users, usersMap, onClose, onSaveField, savingFi
   const zona = splitBarrio(draft.barrio);
   const saving = savingField === String(draft.id);
   const barrios = BARRIOS[zona.localidad || "Banda del Río Salí"] || ALL_BARRIOS;
-  const latestPlano = planos[0] || null;
   const modalFiles = planos.length ? planos : (draft.planoUrl ? [{ id: `legacy-${draft.id}`, nombreOriginal: draft.planoPath || "Archivo cargado", publicUrl: draft.planoUrl, tamanoBytes: 0, createdAt: draft.upd, tipoMime: "" }] : []);
   const previewTarget = modalFiles.find((file) => String(file.id) === String(previewFileId)) || modalFiles[0] || null;
+  const completeness = getExpedienteCompleteness(draft, modalFiles);
+  const warnings = getExpedienteWarnings(draft, modalFiles);
 
   const updateField = (field, value) => {
     const next = { ...draft, [field]: value };
@@ -1027,17 +1040,21 @@ function ModalExpediente({ item, users, usersMap, onClose, onSaveField, savingFi
           background: "#fff",
           borderRadius: 18,
           width: "100%",
-          maxWidth: 980,
+          maxWidth: 1080,
           margin: "0 16px",
           overflow: "hidden",
           boxShadow: "0 20px 60px rgba(0,0,0,.15)",
+          maxHeight: "92vh",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <div style={{ background: "linear-gradient(135deg,#38bdf8,#0ea5e9)", padding: "22px 24px", color: "#fff" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ background: "linear-gradient(135deg,#38bdf8,#0ea5e9)", padding: "20px 24px", color: "#fff" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 10, color: "#bae6fd", fontWeight: 600, textTransform: "uppercase" }}>Expediente</div>
-              <div style={{ fontSize: 20, fontWeight: 700, marginTop: 3 }}>{draft.num}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, marginTop: 3 }}>{draft.num}</div>
+              {modalTotal > 0 ? <div style={{ fontSize: 12, color: "#e0f2fe", marginTop: 4 }}>Expediente {modalIndex + 1} de {modalTotal}</div> : null}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {saving ? <span style={{ fontSize: 12, color: "#e0f2fe" }}>Guardando…</span> : null}
@@ -1047,103 +1064,126 @@ function ModalExpediente({ item, users, usersMap, onClose, onSaveField, savingFi
           </div>
         </div>
 
-        <div style={{ padding: 24, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
-          <div><div style={labelStyle}>Titular</div><input value={draft.titular} disabled={!canEdit} onChange={(e) => updateField("titular", e.target.value)} style={inputStyle} /></div>
-          <div><div style={labelStyle}>DNI</div><input value={draft.dni} disabled={!canEdit} onChange={(e) => updateField("dni", e.target.value)} style={inputStyle} /></div>
-          <div><div style={labelStyle}>Contacto</div><input value={draft.telefono || ""} disabled={!canEdit} onChange={(e) => updateField("telefono", e.target.value)} style={inputStyle} /></div>
-          <div><div style={labelStyle}>Estado civil</div><select value={draft.estadoCivil} disabled={!canEdit} onChange={(e) => updateField("estadoCivil", e.target.value)} style={inputStyle}>{ESTADOS_CIVILES.map((x) => <option key={x} value={x}>{x || "Seleccionar"}</option>)}</select></div>
-          <div><div style={labelStyle}>Localidad</div><select value={zona.localidad || "Banda del Río Salí"} disabled={!canEdit} onChange={(e) => updateZona("localidad", e.target.value)} style={inputStyle}>{LOCALIDADES.map((loc) => <option key={loc} value={loc}>{loc}</option>)}</select></div>
-          <div><div style={labelStyle}>Barrio</div><select value={zona.barrio || ""} disabled={!canEdit} onChange={(e) => updateZona("barrio", e.target.value)} style={inputStyle}><option value="">Seleccionar</option>{barrios.map((b) => <option key={b} value={b}>{b}</option>)}</select></div>
-          <div><div style={labelStyle}>N° de padrón</div><input value={draft.padronNumero} disabled={!canEdit} onChange={(e) => updateField("padronNumero", e.target.value)} style={inputStyle} /></div>
-          <div><div style={labelStyle}>Estado</div><select value={draft.estado} disabled={!canEdit} onChange={(e) => updateField("estado", e.target.value)} style={inputStyle}>{Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></div>
-          <div><div style={labelStyle}>Área</div><select value={draft.area} disabled={!canEdit} onChange={(e) => updateField("area", e.target.value)} style={inputStyle}>{AREAS.filter(Boolean).map((a) => <option key={a} value={a}>{a}</option>)}</select></div>
-          <div><div style={labelStyle}>Responsable</div><select value={draft.resp} disabled={!canEdit} onChange={(e) => updateField("resp", e.target.value)} style={inputStyle}><option value="">Responsable</option>{users.map((user) => <option key={user.id} value={user.id}>{user.nombre}</option>)}</select></div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div style={labelStyle}>Notas internas</div>
-            <textarea value={draft.notas} disabled={!canEdit} onChange={(e) => updateField("notas", e.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} />
+        <div style={{ padding: 20, overflow: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
+            <div style={{ background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}><div style={labelStyle}>Estado</div><div><Badge estado={draft.estado} /></div></div>
+            <div style={{ background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}><div style={labelStyle}>Responsable</div><div style={{ fontWeight: 700, fontSize: 13 }}>{usersMap[draft.resp] || "Sin asignar"}</div></div>
+            <div style={{ background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}><div style={labelStyle}>Nivel de carga</div><div><CompletenessBadge expediente={draft} attachments={modalFiles} /></div></div>
+            <div style={{ background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}><div style={labelStyle}>Archivos</div><div style={{ fontWeight: 700, fontSize: 13 }}>{modalFiles.length}</div></div>
           </div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div style={labelStyle}>Archivos adjuntos</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 12 }}>
-              {canEdit ? (
-                <label style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 8, cursor: uploadingPlano ? "not-allowed" : "pointer" }}>
-                  {uploadingPlano ? "Subiendo..." : "Subir archivos"}
-                  <input
-                    type="file"
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
-                    multiple
-                    style={{ display: "none" }}
-                    disabled={uploadingPlano}
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      if (files.length) onUploadPlano(draft.id, files);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              ) : null}
-              <span style={{ color: C.dim, fontSize: 12 }}>Máximo {MAX_PLANO_FILE_SIZE_MB} MB por archivo • JPG, PNG, WEBP, PDF, DOC, DOCX, XLS, XLSX, CSV</span>
-            </div>
 
-            {modalFiles.length ? (
-              <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "grid", gap: 10 }}>
-                  {modalFiles.map((plano) => {
-                    const activePreview = String(previewTarget?.id || "") === String(plano.id);
-                    return (
-                      <div key={plano.id} style={{ background: activePreview ? "#eff6ff" : "#f8fafc", border: `1px solid ${activePreview ? "#93c5fd" : C.border}`, borderRadius: 12, padding: "10px 12px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 13, color: C.slate }}>{plano.nombreOriginal || "Archivo"}</div>
-                          <div style={{ marginTop: 4, fontSize: 12, color: C.dim }}>
-                            {plano.tamanoBytes ? formatFileSize(plano.tamanoBytes) : "Archivo adjunto"}
-                            {plano.createdAt ? ` • ${formatDateTime(plano.createdAt)}` : ""}
+          {warnings.length ? (
+            <div style={{ marginBottom: 14, background: "#fffbeb", color: "#92400e", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Alertas inteligentes</div>
+              <div style={{ display: "grid", gap: 4, fontSize: 13 }}>{warnings.map((warning) => <div key={warning}>• {warning}</div>)}</div>
+            </div>
+          ) : null}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+            <div><div style={labelStyle}>Titular</div><input value={draft.titular} disabled={!canEdit} onChange={(e) => updateField("titular", e.target.value)} style={inputStyle} /></div>
+            <div><div style={labelStyle}>DNI</div><input value={draft.dni} disabled={!canEdit} onChange={(e) => updateField("dni", e.target.value)} style={inputStyle} /></div>
+            <div><div style={labelStyle}>Contacto</div><input value={draft.telefono || ""} disabled={!canEdit} onChange={(e) => updateField("telefono", e.target.value)} style={inputStyle} /></div>
+            <div><div style={labelStyle}>Estado civil</div><select value={draft.estadoCivil} disabled={!canEdit} onChange={(e) => updateField("estadoCivil", e.target.value)} style={inputStyle}>{ESTADOS_CIVILES.map((x) => <option key={x} value={x}>{x || "Seleccionar"}</option>)}</select></div>
+            <div><div style={labelStyle}>Localidad</div><select value={zona.localidad || "Banda del Río Salí"} disabled={!canEdit} onChange={(e) => updateZona("localidad", e.target.value)} style={inputStyle}>{LOCALIDADES.map((loc) => <option key={loc} value={loc}>{loc}</option>)}</select></div>
+            <div><div style={labelStyle}>Barrio</div><select value={zona.barrio || ""} disabled={!canEdit} onChange={(e) => updateZona("barrio", e.target.value)} style={inputStyle}><option value="">Seleccionar</option>{barrios.map((b) => <option key={b} value={b}>{b}</option>)}</select></div>
+            <div><div style={labelStyle}>N° de padrón</div><input value={draft.padronNumero} disabled={!canEdit} onChange={(e) => updateField("padronNumero", e.target.value)} style={inputStyle} /></div>
+            <div><div style={labelStyle}>Estado</div><select value={draft.estado} disabled={!canEdit} onChange={(e) => updateField("estado", e.target.value)} style={{ ...inputStyle, background: (ESTADOS[draft.estado] || ESTADOS.pendiente).bg, color: (ESTADOS[draft.estado] || ESTADOS.pendiente).color, borderColor: (ESTADOS[draft.estado] || ESTADOS.pendiente).border, fontWeight: 700 }}>{Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></div>
+            <div><div style={labelStyle}>Área</div><select value={draft.area} disabled={!canEdit} onChange={(e) => updateField("area", e.target.value)} style={inputStyle}>{AREAS.filter(Boolean).map((a) => <option key={a} value={a}>{a}</option>)}</select></div>
+            <div><div style={labelStyle}>Responsable</div><select value={draft.resp} disabled={!canEdit} onChange={(e) => updateField("resp", e.target.value)} style={inputStyle}><option value="">Responsable</option>{users.map((user) => <option key={user.id} value={user.id}>{user.nombre}</option>)}</select></div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <div style={labelStyle}>Notas internas</div>
+              <textarea value={draft.notas} disabled={!canEdit} onChange={(e) => updateField("notas", e.target.value)} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <div style={labelStyle}>Archivos adjuntos</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 12 }}>
+                {canEdit ? (
+                  <label style={{ ...btnGhost, display: "inline-flex", alignItems: "center", gap: 8, cursor: uploadingPlano ? "not-allowed" : "pointer" }}>
+                    {uploadingPlano ? "Subiendo..." : "Subir archivos"}
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+                      multiple
+                      style={{ display: "none" }}
+                      disabled={uploadingPlano}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length) onUploadPlano(draft.id, files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                ) : null}
+                <span style={{ color: C.dim, fontSize: 12 }}>Máximo {MAX_PLANO_FILE_SIZE_MB} MB por archivo • JPG, PNG, WEBP, PDF, DOC, DOCX, XLS, XLSX, CSV</span>
+              </div>
+
+              {modalFiles.length ? (
+                <div style={{ display: "grid", gap: 12 }}>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {modalFiles.map((plano) => {
+                      const activePreview = String(previewTarget?.id || "") === String(plano.id);
+                      return (
+                        <div key={plano.id} style={{ background: activePreview ? "#eff6ff" : "#f8fafc", border: `1px solid ${activePreview ? "#93c5fd" : C.border}`, borderRadius: 12, padding: "10px 12px", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                          <div>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                              <div style={{ fontWeight: 700, fontSize: 13, color: C.slate }}>{plano.nombreOriginal || "Archivo"}</div>
+                              <span style={{ fontSize: 10, color: C.dim, border: `1px solid ${C.border}`, borderRadius: 999, padding: "1px 6px" }}>{getAttachmentLabel(plano.nombreOriginal, plano.tipoMime)}</span>
+                            </div>
+                            <div style={{ marginTop: 4, fontSize: 12, color: C.dim }}>
+                              {plano.tamanoBytes ? formatFileSize(plano.tamanoBytes) : "Archivo adjunto"}
+                              {plano.createdAt ? ` • ${formatDateTime(plano.createdAt)}` : ""}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                            <button type="button" onClick={() => setPreviewFileId(String(plano.id))} style={{ ...btnGhost, padding: "7px 10px", fontSize: 12, color: C.sky }}>Ver</button>
+                            <a href={plano.publicUrl} target="_blank" rel="noreferrer" style={{ color: C.sky, fontWeight: 700, textDecoration: "none", fontSize: 12 }}>Abrir</a>
+                            <a href={plano.publicUrl} download style={{ color: C.sky, fontWeight: 700, textDecoration: "none", fontSize: 12 }}>Descargar</a>
+                            {canEdit ? (
+                              <button
+                                type="button"
+                                onClick={() => onDeletePlano(draft.id, plano)}
+                                disabled={deletingPlanoId === String(plano.id || draft.id)}
+                                style={{ border: "none", background: "transparent", color: C.red, fontWeight: 700, cursor: deletingPlanoId === String(plano.id || draft.id) ? "not-allowed" : "pointer", opacity: deletingPlanoId === String(plano.id || draft.id) ? 0.6 : 1, padding: 0 }}
+                              >
+                                {deletingPlanoId === String(plano.id || draft.id) ? "Eliminando..." : "Eliminar"}
+                              </button>
+                            ) : null}
                           </div>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                          <button type="button" onClick={() => setPreviewFileId(String(plano.id))} style={{ ...btnGhost, padding: "7px 10px", fontSize: 12, color: C.sky }}>Ver</button>
-                          <a href={plano.publicUrl} download style={{ color: C.sky, fontWeight: 700, textDecoration: "none", fontSize: 12 }}>Descargar</a>
-                          {canEdit ? (
-                            <button
-                              type="button"
-                              onClick={() => onDeletePlano(draft.id, plano)}
-                              disabled={deletingPlanoId === String(plano.id || draft.id)}
-                              style={{ border: "none", background: "transparent", color: C.red, fontWeight: 700, cursor: deletingPlanoId === String(plano.id || draft.id) ? "not-allowed" : "pointer", opacity: deletingPlanoId === String(plano.id || draft.id) ? 0.6 : 1, padding: 0 }}
-                            >
-                              {deletingPlanoId === String(plano.id || draft.id) ? "Eliminando..." : "Eliminar"}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {previewTarget ? (
-                  <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, background: "#fff", overflow: "hidden" }}>
-                    <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: C.slate }}>Vista previa: {previewTarget.nombreOriginal}</div>
-                      <a href={previewTarget.publicUrl} target="_blank" rel="noreferrer" style={{ color: C.sky, fontWeight: 700, textDecoration: "none", fontSize: 12 }}>Abrir en pestaña</a>
-                    </div>
-                    {getPreviewType(previewTarget.nombreOriginal, previewTarget.tipoMime) === "image" ? (
-                      <div style={{ padding: 12, background: "#f8fafc", display: "flex", justifyContent: "center" }}>
-                        <img src={previewTarget.publicUrl} alt={previewTarget.nombreOriginal} style={{ maxWidth: "100%", maxHeight: 420, objectFit: "contain", borderRadius: 10 }} />
-                      </div>
-                    ) : getPreviewType(previewTarget.nombreOriginal, previewTarget.tipoMime) === "pdf" ? (
-                      <iframe title={previewTarget.nombreOriginal} src={previewTarget.publicUrl} style={{ width: "100%", height: 420, border: "none", background: "#fff" }} />
-                    ) : (
-                      <div style={{ padding: 20, fontSize: 13, color: C.muted }}>Este tipo de archivo no tiene vista previa dentro del panel. Usá “Descargar” o “Abrir en pestaña”.</div>
-                    )}
+                      );
+                    })}
                   </div>
-                ) : null}
-              </div>
-            ) : (
-              <span style={{ color: C.dim, fontSize: 12 }}>Sin archivos adjuntos</span>
-            )}
+
+                  {previewTarget ? (
+                    <div style={{ border: `1px solid ${C.border}`, borderRadius: 14, background: "#fff", overflow: "hidden" }}>
+                      <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.slate }}>Vista previa: {previewTarget.nombreOriginal}</div>
+                        <a href={previewTarget.publicUrl} target="_blank" rel="noreferrer" style={{ color: C.sky, fontWeight: 700, textDecoration: "none", fontSize: 12 }}>Abrir en pestaña</a>
+                      </div>
+                      {getPreviewType(previewTarget.nombreOriginal, previewTarget.tipoMime) === "image" ? (
+                        <div style={{ padding: 12, background: "#f8fafc", display: "flex", justifyContent: "center" }}>
+                          <img src={previewTarget.publicUrl} alt={previewTarget.nombreOriginal} style={{ maxWidth: "100%", maxHeight: 420, objectFit: "contain", borderRadius: 10 }} />
+                        </div>
+                      ) : getPreviewType(previewTarget.nombreOriginal, previewTarget.tipoMime) === "pdf" ? (
+                        <iframe title={previewTarget.nombreOriginal} src={previewTarget.publicUrl} style={{ width: "100%", height: 420, border: "none", background: "#fff" }} />
+                      ) : (
+                        <div style={{ padding: 20, fontSize: 13, color: C.muted }}>Este tipo de archivo no tiene vista previa dentro del panel. Usá “Descargar” o “Abrir en pestaña”.</div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <span style={{ color: C.dim, fontSize: 12 }}>Sin archivos adjuntos</span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div style={{ padding: "0 24px 20px", display: "flex", justifyContent: "space-between", gap: 10 }}>
-          <div>{canEdit ? <button onClick={() => onDelete(draft)} style={{ ...btnGhost, color: C.red, borderColor: "#fecaca" }}>Eliminar expediente</button> : null}</div>
+        <div style={{ padding: "0 24px 20px", display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {canEdit ? <button onClick={() => onDelete(draft)} style={{ ...btnGhost, color: C.red, borderColor: "#fecaca" }}>Eliminar expediente</button> : null}
+            {onNext ? <button onClick={onNext} style={btnGhost}>Siguiente expediente</button> : null}
+          </div>
           <button onClick={onClose} style={btnGhost}>Cerrar</button>
         </div>
       </div>
@@ -1346,9 +1386,9 @@ function ExpedienteRow({ exp, users, usersMap, onSaveField, onOpen, onUploadPlan
           ) : <span style={{ fontSize: 11, color: C.dim }}>Sin archivo</span>}
         </div>
       </td>
-      <td style={{ padding: "8px 8px", minWidth: 120 }}><div style={{ marginBottom: 8 }}><Badge estado={draft.estado} /></div><select value={draft.estado} disabled={!canEdit} onChange={(e) => updateField("estado", e.target.value)} style={compactInputStyle}>{Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></td>
+      <td style={{ padding: "8px 8px", minWidth: 126 }}><select value={draft.estado} disabled={!canEdit} onChange={(e) => updateField("estado", e.target.value)} style={getEstadoSelectStyle(draft.estado)}>{Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></td>
       <td style={{ padding: "8px 8px", minWidth: 112 }}><select value={draft.area} disabled={!canEdit} onChange={(e) => updateField("area", e.target.value)} style={compactInputStyle}>{AREAS.filter(Boolean).map((a) => <option key={a} value={a}>{a}</option>)}</select></td>
-      <td style={{ padding: "8px 8px", minWidth: 128 }}><select value={draft.resp} disabled={!canEdit} onChange={(e) => updateField("resp", e.target.value)} style={compactInputStyle}><option value="">Responsable</option>{users.map((user) => <option key={user.id} value={user.id}>{user.nombre}</option>)}</select><div style={{ color: C.dim, fontSize: 11, marginTop: 4 }}>{usersMap[draft.resp] || "—"}</div></td>
+      <td style={{ padding: "8px 8px", minWidth: 128 }}><select value={draft.resp} disabled={!canEdit} onChange={(e) => updateField("resp", e.target.value)} style={compactInputStyle}><option value="">Responsable</option>{users.map((user) => <option key={user.id} value={user.id}>{user.nombre}</option>)}</select></td>
       <td style={{ padding: "8px 8px", minWidth: 170 }}><textarea value={draft.notas} disabled={!canEdit} onChange={(e) => updateField("notas", e.target.value)} rows={2} style={{ ...compactInputStyle, resize: "vertical", minHeight: 54 }} /></td>
       <td style={{ padding: "8px 8px", minWidth: 100 }}>
         <div style={{ display: "grid", gap: 8 }}>
@@ -1401,6 +1441,8 @@ export default function App() {
   const [importSummary, setImportSummary] = useState(null);
   const [sortOrder, setSortOrder] = useState("recent");
   const [selectedExpedientes, setSelectedExpedientes] = useState([]);
+  const [bulkEstado, setBulkEstado] = useState("");
+  const [bulkResponsable, setBulkResponsable] = useState("");
 
   const fechaActual = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" });
   const usersMap = useMemo(() => buildUsersMap(users), [users]);
@@ -1853,6 +1895,45 @@ export default function App() {
     setSelectedExpedientes((prev) => allSelected ? prev.filter((id) => !pageIds.includes(id)) : [...new Set([...prev, ...pageIds])]);
   }
 
+
+  async function applyBulkUpdate(partial, successLabel) {
+    if (!supabase || !canEdit || !selectedExpedientes.length) {
+      setError("Seleccioná al menos un expediente para aplicar cambios masivos.");
+      return;
+    }
+
+    const payload = buildUpdatePayload(partial);
+    const { error: updateError } = await supabase
+      .from("expedientes")
+      .update(payload)
+      .in("id", selectedExpedientes);
+
+    if (updateError) {
+      setError(`No se pudo aplicar el cambio masivo: ${updateError.message}`);
+      return;
+    }
+
+    setData((prev) => prev.map((item) => selectedExpedientes.includes(item.id) ? { ...item, ...partial, upd: payload.updated_at } : item));
+    setModalItem((prev) => (prev && selectedExpedientes.includes(prev.id) ? { ...prev, ...partial, upd: payload.updated_at } : prev));
+    setNotice(successLabel);
+  }
+
+  async function applyBulkEstado() {
+    if (!bulkEstado) {
+      setError("Seleccioná un estado para aplicar de forma masiva.");
+      return;
+    }
+    await applyBulkUpdate({ estado: bulkEstado }, `Estado actualizado en ${selectedExpedientes.length} expediente(s).`);
+  }
+
+  async function applyBulkResponsable() {
+    if (!bulkResponsable) {
+      setError("Seleccioná un responsable para aplicar de forma masiva.");
+      return;
+    }
+    await applyBulkUpdate({ resp: bulkResponsable }, `Responsable actualizado en ${selectedExpedientes.length} expediente(s).`);
+  }
+
   async function exportSelectedToPdf() {
     const selectedRows = data.filter((item) => selectedExpedientes.includes(item.id));
     if (!selectedRows.length) {
@@ -2092,6 +2173,14 @@ export default function App() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
   const currentPage = Math.min(page, totalPages);
   const slice = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const modalSequence = filtered;
+  const modalIndex = modalItem ? modalSequence.findIndex((item) => item.id === modalItem.id) : -1;
+  const modalTotal = modalSequence.length;
+
+  function openNextExpediente() {
+    if (modalIndex < 0 || modalIndex >= modalSequence.length - 1) return;
+    setModalItem(modalSequence[modalIndex + 1]);
+  }
 
   const pageButtons = useMemo(() => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -2256,13 +2345,13 @@ export default function App() {
                       <select value={fPrioridad} onChange={(e) => { setFPrioridad(e.target.value); setPage(1); }} style={inputStyle}><option value="">Todas las prioridades</option>{Object.entries(PRIORIDADES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
                       <select value={fCompletitud} onChange={(e) => { setFCompletitud(e.target.value); setPage(1); }} style={inputStyle}>
                         <option value="">Toda completitud</option>
-                        <option value="alto">Completos</option>
-                        <option value="medio">Intermedios</option>
-                        <option value="bajo">Básicos</option>
+                        <option value="alto">Carga alta</option>
+                        <option value="medio">Carga intermedia</option>
+                        <option value="bajo">Carga baja</option>
                         <option value="con_archivos">Con archivos</option>
                         <option value="sin_archivos">Sin archivos</option>
                       </select>
-                    </div>                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                    </div>                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
                       <button onClick={() => setSortOrder("recent")} style={{ ...btnGhost, background: sortOrder === "recent" ? "#eff6ff" : "#fff", color: sortOrder === "recent" ? "#2563eb" : C.muted }}>Recientes</button>
                       <button onClick={() => setSortOrder("az")} style={{ ...btnGhost, background: sortOrder === "az" ? "#eff6ff" : "#fff", color: sortOrder === "az" ? "#2563eb" : C.muted }}>Titular A-Z</button>
                       <button onClick={() => setSortOrder("za")} style={{ ...btnGhost, background: sortOrder === "za" ? "#eff6ff" : "#fff", color: sortOrder === "za" ? "#2563eb" : C.muted }}>Titular Z-A</button>
@@ -2270,6 +2359,21 @@ export default function App() {
                       <button onClick={toggleSelectPage} style={btnGhost}>{slice.every((item) => selectedExpedientes.includes(item.id)) && slice.length ? "Deseleccionar página" : "Seleccionar página"}</button>
                       <button onClick={exportSelectedToPdf} style={btnPrimary}>Descargar PDF seleccionados</button>
                     </div>
+                    {selectedExpedientes.length ? (
+                      <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 12, padding: 10 }}>
+                        <div style={{ fontSize: 12, color: C.muted, fontWeight: 700 }}>{selectedExpedientes.length} expediente(s) seleccionados</div>
+                        <select value={bulkEstado} onChange={(e) => setBulkEstado(e.target.value)} style={{ ...compactInputStyle, width: 180 }}>
+                          <option value="">Cambiar estado masivo</option>
+                          {Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                        </select>
+                        <button onClick={applyBulkEstado} style={{ ...btnGhost, padding: "8px 10px" }}>Aplicar estado</button>
+                        <select value={bulkResponsable} onChange={(e) => setBulkResponsable(e.target.value)} style={{ ...compactInputStyle, width: 210 }}>
+                          <option value="">Asignar responsable masivo</option>
+                          {users.map((user) => <option key={user.id} value={user.id}>{user.nombre}</option>)}
+                        </select>
+                        <button onClick={applyBulkResponsable} style={{ ...btnGhost, padding: "8px 10px" }}>Aplicar responsable</button>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div style={{ overflow: "auto", maxHeight: "calc(100vh - 310px)" }}>
@@ -2319,7 +2423,7 @@ export default function App() {
         </div>
       </div>
 
-      <ModalExpediente item={modalItem} users={users} usersMap={usersMap} onClose={() => setModalItem(null)} onSaveField={saveExpedienteField} savingField={savingField} onUploadPlano={uploadPlanoFile} onDeletePlano={deletePlanoFile} uploadingPlano={uploadingPlanoId === String(modalItem?.id)} deletingPlanoId={deletingPlanoId} canEdit={canEdit} onDelete={deleteExpediente} planos={planosByExpediente[modalItem?.id] || []} />
+      <ModalExpediente item={modalItem} users={users} usersMap={usersMap} onClose={() => setModalItem(null)} onSaveField={saveExpedienteField} savingField={savingField} onUploadPlano={uploadPlanoFile} onDeletePlano={deletePlanoFile} uploadingPlano={uploadingPlanoId === String(modalItem?.id)} deletingPlanoId={deletingPlanoId} canEdit={canEdit} onDelete={deleteExpediente} planos={planosByExpediente[modalItem?.id] || []} onNext={modalIndex >= 0 && modalIndex < modalTotal - 1 ? openNextExpediente : null} modalIndex={modalIndex} modalTotal={modalTotal} />
       <NuevoExpedienteModal open={nuevoOpen} onClose={() => setNuevoOpen(false)} onSave={addExpediente} saving={saving} users={users} />
     </div>
   );
