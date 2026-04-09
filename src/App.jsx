@@ -142,20 +142,20 @@ const ACCESS_HISTORY_KEY = "cig_panel_access_history_v1";
 
 
 const TABLE_COLGROUP = [
-  { key: "check", width: 34 },
-  { key: "expediente", width: 118 },
-  { key: "titular", width: 220 },
-  { key: "dni", width: 100 },
-  { key: "contacto", width: 118 },
-  { key: "estadoCivil", width: 120 },
-  { key: "barrio", width: 190 },
-  { key: "padron", width: 98 },
-  { key: "archivos", width: 145 },
-  { key: "estado", width: 112 },
-  { key: "area", width: 110 },
-  { key: "responsable", width: 126 },
-  { key: "notas", width: 210 },
-  { key: "acciones", width: 98 },
+  { key: "check", width: "2.4%" },
+  { key: "expediente", width: "6.8%" },
+  { key: "titular", width: "16%" },
+  { key: "dni", width: "8.3%" },
+  { key: "contacto", width: "9.5%" },
+  { key: "estadoCivil", width: "10.5%" },
+  { key: "barrio", width: "13.8%" },
+  { key: "padron", width: "8.2%" },
+  { key: "archivos", width: "11.2%" },
+  { key: "estado", width: "8.6%" },
+  { key: "area", width: "7.8%" },
+  { key: "responsable", width: "9.4%" },
+  { key: "notas", width: "12.2%" },
+  { key: "acciones", width: "8.3%" },
 ];
 
 
@@ -2225,9 +2225,12 @@ export default function App() {
     return <LoginScreen selectedUserId={selectedLoginUserId} onSelectUser={setSelectedLoginUserId} onIngresar={handleLogin} loginLoading={loginLoading} loginError={loginError} />;
   }
 
+  const sidebarWidth = sidebarOpen ? 182 : 74;
+  const contentWidth = `calc(100vw - ${sidebarWidth}px)`;
+
   return (
-    <div style={{ margin: 0, fontFamily: "Segoe UI, sans-serif", background: C.bg, color: C.text, minHeight: "100vh" }}>
-      <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div style={{ margin: 0, fontFamily: "Segoe UI, sans-serif", background: C.bg, color: C.text, minHeight: "100vh", width: "100vw", overflowX: "hidden" }}>
+      <div style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
         <aside style={{ width: sidebarOpen ? 182 : 74, background: "#fff", borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
           <div style={{ padding: "18px 12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "center" }}>
             <div style={{ width: sidebarOpen ? 88 : 56, height: sidebarOpen ? 88 : 56, borderRadius: sidebarOpen ? 22 : 16, background: "#fff", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 30px rgba(15,23,42,.06)" }}>
@@ -2253,8 +2256,8 @@ export default function App() {
           </div>
         </aside>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <header style={{ background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "12px clamp(14px, 1.8vw, 24px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, width: contentWidth, maxWidth: contentWidth }}>
+          <header style={{ background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "12px clamp(14px, 1.8vw, 24px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", boxSizing: "border-box" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700 }}>{activeNav}</div>
               <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>Dirección de Regularización Dominial • Base conectada a Supabase</div>
@@ -2268,7 +2271,7 @@ export default function App() {
             </div>
           </header>
 
-          <main style={{ flex: 1, padding: "16px clamp(12px, 1.6vw, 24px)", width: "100%", maxWidth: "none", boxSizing: "border-box" }}>
+          <main style={{ flex: 1, padding: "16px clamp(12px, 1.2vw, 20px)", width: "100%", maxWidth: "none", boxSizing: "border-box", overflowX: "hidden" }}>
             {error ? <div style={{ marginBottom: 16, background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>{error}</div> : null}
             {notice ? <div style={{ marginBottom: 16, background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>{notice}</div> : null}
             {accessSyncStyle ? <div style={{ ...accessSyncStyle, marginBottom: 16, borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>{accessSyncStatus.text}</div> : null}
@@ -2341,7 +2344,7 @@ export default function App() {
               </div>
             ) : (
               <>
-                <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+                <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden", width: "100%", boxSizing: "border-box" }}>
                   <div style={{ padding: "14px 18px", borderBottom: "1px solid #f1f5f9" }}>
                     <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
                       <div style={{ position: "relative", flex: 1, minWidth: 170 }}>
@@ -2395,8 +2398,8 @@ export default function App() {
                     ) : null}
                   </div>
 
-                  <div style={{ overflow: "auto", maxHeight: "calc(100vh - 265px)", width: "100%" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1690, fontSize: 11, tableLayout: "fixed" }}>
+                  <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 265px)", width: "100%" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1380, fontSize: 11, tableLayout: "fixed" }}>
                       <colgroup>
                         {TABLE_COLGROUP.map((col) => <col key={col.key} style={{ width: col.width }} />)}
                       </colgroup>
