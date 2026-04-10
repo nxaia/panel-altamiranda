@@ -142,20 +142,20 @@ const ACCESS_HISTORY_KEY = "cig_panel_access_history_v1";
 
 
 const TABLE_COLGROUP = [
-  { key: "check", width: "2.4%" },
-  { key: "expediente", width: "6.8%" },
-  { key: "titular", width: "16%" },
-  { key: "dni", width: "8.3%" },
-  { key: "contacto", width: "9.5%" },
-  { key: "estadoCivil", width: "10.5%" },
-  { key: "barrio", width: "13.8%" },
-  { key: "padron", width: "8.2%" },
-  { key: "archivos", width: "11.2%" },
-  { key: "estado", width: "8.6%" },
-  { key: "area", width: "7.8%" },
-  { key: "responsable", width: "9.4%" },
-  { key: "notas", width: "12.2%" },
-  { key: "acciones", width: "8.3%" },
+  { key: "check", width: "36px" },
+  { key: "expediente", width: "118px" },
+  { key: "titular", width: "190px" },
+  { key: "dni", width: "92px" },
+  { key: "contacto", width: "108px" },
+  { key: "estadoCivil", width: "120px" },
+  { key: "barrio", width: "170px" },
+  { key: "padron", width: "100px" },
+  { key: "archivos", width: "150px" },
+  { key: "estado", width: "118px" },
+  { key: "area", width: "96px" },
+  { key: "responsable", width: "116px" },
+  { key: "notas", width: "150px" },
+  { key: "acciones", width: "96px" },
 ];
 
 
@@ -2225,11 +2225,8 @@ export default function App() {
     return <LoginScreen selectedUserId={selectedLoginUserId} onSelectUser={setSelectedLoginUserId} onIngresar={handleLogin} loginLoading={loginLoading} loginError={loginError} />;
   }
 
-  const sidebarWidth = sidebarOpen ? 182 : 74;
-  const contentWidth = `calc(100vw - ${sidebarWidth}px)`;
-
   return (
-    <div style={{ margin: 0, fontFamily: "Segoe UI, sans-serif", background: C.bg, color: C.text, minHeight: "100vh", width: "100vw", overflowX: "hidden" }}>
+    <div style={{ margin: 0, fontFamily: "Segoe UI, sans-serif", background: C.bg, color: C.text, minHeight: "100vh", width: "100%", overflowX: "hidden" }}>
       <div style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
         <aside style={{ width: sidebarOpen ? 182 : 74, background: "#fff", borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
           <div style={{ padding: "18px 12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "center" }}>
@@ -2256,7 +2253,7 @@ export default function App() {
           </div>
         </aside>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, width: contentWidth, maxWidth: contentWidth }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, width: "100%", maxWidth: "none" }}>
           <header style={{ background: "#fff", borderBottom: `1px solid ${C.border}`, padding: "12px clamp(14px, 1.8vw, 24px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", boxSizing: "border-box" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700 }}>{activeNav}</div>
@@ -2271,7 +2268,7 @@ export default function App() {
             </div>
           </header>
 
-          <main style={{ flex: 1, padding: "16px clamp(12px, 1.2vw, 20px)", width: "100%", maxWidth: "none", boxSizing: "border-box", overflowX: "hidden" }}>
+          <main style={{ flex: 1, padding: "16px 16px 20px", width: "100%", maxWidth: "none", boxSizing: "border-box", overflowX: "hidden" }}>
             {error ? <div style={{ marginBottom: 16, background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>{error}</div> : null}
             {notice ? <div style={{ marginBottom: 16, background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>{notice}</div> : null}
             {accessSyncStyle ? <div style={{ ...accessSyncStyle, marginBottom: 16, borderRadius: 12, padding: "12px 14px", fontSize: 13 }}>{accessSyncStatus.text}</div> : null}
@@ -2353,10 +2350,10 @@ export default function App() {
                       </div>
                       <button onClick={() => { setSearch(""); setFEstado(""); setFArea(""); setFPrioridad(""); setFBarrio(""); setFCompletitud(""); setPage(1); }} style={btnGhost}>Limpiar filtros</button>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 8 }}>
-                      <select value={fEstado} onChange={(e) => { setFEstado(e.target.value); setPage(1); }} style={inputStyle}><option value="">Todos los estados</option>{Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
-                      <select value={fArea} onChange={(e) => { setFArea(e.target.value); setPage(1); }} style={inputStyle}><option value="">Todas las áreas</option>{AREAS.filter(Boolean).map((a) => <option key={a} value={a}>{a}</option>)}</select>
-                      <select value={fBarrio} onChange={(e) => { setFBarrio(e.target.value); setPage(1); }} style={inputStyle}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                      <select value={fEstado} onChange={(e) => { setFEstado(e.target.value); setPage(1); }} style={{ ...inputStyle, width: "fit-content", minWidth: 180, flex: "0 1 190px" }}><option value="">Todos los estados</option>{Object.entries(ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
+                      <select value={fArea} onChange={(e) => { setFArea(e.target.value); setPage(1); }} style={{ ...inputStyle, width: "fit-content", minWidth: 180, flex: "0 1 190px" }}><option value="">Todas las áreas</option>{AREAS.filter(Boolean).map((a) => <option key={a} value={a}>{a}</option>)}</select>
+                      <select value={fBarrio} onChange={(e) => { setFBarrio(e.target.value); setPage(1); }} style={{ ...inputStyle, width: "fit-content", minWidth: 210, flex: "0 1 260px" }}>
                         <option value="">Todos los barrios</option>
                         {barrioFilterOptions.map((group) => (
                           <optgroup key={group.localidad} label={group.localidad}>
@@ -2364,8 +2361,8 @@ export default function App() {
                           </optgroup>
                         ))}
                       </select>
-                      <select value={fPrioridad} onChange={(e) => { setFPrioridad(e.target.value); setPage(1); }} style={inputStyle}><option value="">Todas las prioridades</option>{Object.entries(PRIORIDADES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
-                      <select value={fCompletitud} onChange={(e) => { setFCompletitud(e.target.value); setPage(1); }} style={inputStyle}>
+                      <select value={fPrioridad} onChange={(e) => { setFPrioridad(e.target.value); setPage(1); }} style={{ ...inputStyle, width: "fit-content", minWidth: 180, flex: "0 1 190px" }}><option value="">Todas las prioridades</option>{Object.entries(PRIORIDADES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
+                      <select value={fCompletitud} onChange={(e) => { setFCompletitud(e.target.value); setPage(1); }} style={{ ...inputStyle, width: "fit-content", minWidth: 190, flex: "0 1 210px" }}>
                         <option value="">Toda completitud</option>
                         <option value="alto">Carga alta</option>
                         <option value="medio">Carga intermedia</option>
@@ -2373,13 +2370,14 @@ export default function App() {
                         <option value="con_archivos">Con archivos</option>
                         <option value="sin_archivos">Sin archivos</option>
                       </select>
-                    </div>                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
-                      <button onClick={() => setSortOrder("recent")} style={{ ...btnGhost, background: sortOrder === "recent" ? "#eff6ff" : "#fff", color: sortOrder === "recent" ? "#2563eb" : C.muted }}>Recientes</button>
-                      <button onClick={() => setSortOrder("az")} style={{ ...btnGhost, background: sortOrder === "az" ? "#eff6ff" : "#fff", color: sortOrder === "az" ? "#2563eb" : C.muted }}>Titular A-Z</button>
-                      <button onClick={() => setSortOrder("za")} style={{ ...btnGhost, background: sortOrder === "za" ? "#eff6ff" : "#fff", color: sortOrder === "za" ? "#2563eb" : C.muted }}>Titular Z-A</button>
-                      <button onClick={() => setSortOrder("complete")} style={{ ...btnGhost, background: sortOrder === "complete" ? "#eff6ff" : "#fff", color: sortOrder === "complete" ? "#2563eb" : C.muted }}>Más completos</button>
-                      <button onClick={toggleSelectPage} style={btnGhost}>{slice.every((item) => selectedExpedientes.includes(item.id)) && slice.length ? "Deseleccionar página" : "Seleccionar página"}</button>
-                      <button onClick={exportSelectedToPdf} style={btnPrimary}>Descargar PDF seleccionados</button>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 0, alignItems: "center" }}>
+                      <button onClick={() => setSortOrder("recent")} style={{ ...btnGhost, background: sortOrder === "recent" ? "#eff6ff" : "#fff", color: sortOrder === "recent" ? "#2563eb" : C.muted, padding: "8px 12px" }}>Recientes</button>
+                      <button onClick={() => setSortOrder("az")} style={{ ...btnGhost, background: sortOrder === "az" ? "#eff6ff" : "#fff", color: sortOrder === "az" ? "#2563eb" : C.muted, padding: "8px 12px" }}>Titular A-Z</button>
+                      <button onClick={() => setSortOrder("za")} style={{ ...btnGhost, background: sortOrder === "za" ? "#eff6ff" : "#fff", color: sortOrder === "za" ? "#2563eb" : C.muted, padding: "8px 12px" }}>Titular Z-A</button>
+                      <button onClick={() => setSortOrder("complete")} style={{ ...btnGhost, background: sortOrder === "complete" ? "#eff6ff" : "#fff", color: sortOrder === "complete" ? "#2563eb" : C.muted, padding: "8px 12px" }}>Más completos</button>
+                      <button onClick={toggleSelectPage} style={{ ...btnGhost, padding: "8px 12px" }}>{slice.every((item) => selectedExpedientes.includes(item.id)) && slice.length ? "Deseleccionar página" : "Seleccionar página"}</button>
+                      <button onClick={exportSelectedToPdf} style={{ ...btnPrimary, padding: "8px 12px" }}>Descargar PDF seleccionados</button>
                     </div>
                     {selectedExpedientes.length ? (
                       <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 12, padding: 10 }}>
@@ -2399,7 +2397,7 @@ export default function App() {
                   </div>
 
                   <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "calc(100vh - 265px)", width: "100%" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1380, fontSize: 11, tableLayout: "fixed" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1480, fontSize: 11, tableLayout: "fixed" }}>
                       <colgroup>
                         {TABLE_COLGROUP.map((col) => <col key={col.key} style={{ width: col.width }} />)}
                       </colgroup>
